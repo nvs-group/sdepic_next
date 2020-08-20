@@ -1,4 +1,4 @@
-# Self Directed EPIC 6/26/2020 ----
+# Self Directed EPIC 8/19/2020 ----
 # 01 Load Libraries ----
 library(shiny)
 library(shinydashboard)
@@ -74,6 +74,7 @@ degree_list3 <- degree_master %>% filter(AWLEVEL %in% unique(major_master$AWLEVE
 pro_name <- "Lynn Chapman"
 pro_email <- "myemail@profile.com"
 pro_state <- "Virginia"
+pro_user <- "USER1"
 # 03 Functions ----
 
 
@@ -87,7 +88,7 @@ sidebar <- dashboardSidebar(
   sidebarMenu(id = "tabs", 
               menuItem("Profile", tabName = "profile", icon = icon("user")),
               menuItem("Dashboard", tabName = "dashboard", icon = icon("tachometer-alt"),selected = TRUE),
-              menuItem("Build Scenario", tabName = "build", icon = icon("plus")),
+              menuItem("Scenarios", tabName = "build", icon = icon("plus")),
               menuItem("Explore", tabName = "explore", icon = icon("fas fa-compass"),
                        menuSubItem("Explore Schools", tabName = "school"),
                        menuSubItem("Explore Occupations", tabName = "occupation"),
@@ -246,9 +247,11 @@ body <- dashboardBody(
                     ),
                     fluidRow(column(width = 1),
                              column(width = 6,
-                                    div(id = "schoolinfo2", column(width = 4, uiOutput("schoolchoice1"),uiOutput("schoolchoice4")),
-                                        column(width = 4, uiOutput("schoolchoice2"), uiOutput("schoolchoice5")),
-                                        column(width = 4, uiOutput("schoolchoice3"))
+                                    div(id = "schoolinfo2",
+                                         uiOutput("schoolchoice")
+  #                                      column(width = 4, uiOutput("schoolchoice1"),uiOutput("schoolchoice4")),
+  #                                      column(width = 4, uiOutput("schoolchoice2"), uiOutput("schoolchoice5")),
+  #                                      column(width = 4, uiOutput("schoolchoice3"))
                                     ))),
                     fluidRow(column(width = 1),
                              column(width = 6,
@@ -358,7 +361,6 @@ body <- dashboardBody(
                         column(width = 3,
                                selectInput(inputId = "es_state", label = "State", choices = c("All" = '',state_abbr_master$State),
                                            width = "100%")),
-                        column(width = 3),
                         column(width = 3,
                                sliderInput(inputId = "es_room_board", label = "Room and Board",
                                            value = max(school_master2$ROOM_BOARD),
@@ -576,8 +578,21 @@ server <- function(input, output, session) {
   degree_list_selected <- vector(mode = "list")
   occupation_list_selected <- vector(mode = "list")
   major_list_selected <- vector(mode = "list")
+  #old saved data format
+  user_scen01 <- tibble("ID" = numeric(), "scenario" = character())
+  #new saved data format
+  user_scenarios <- tibble("user" = character(),
+                              "scenario" = character(),
+                              "source" = character(),
+                              "category" = character(),
+                              "id" = character())
   
-  user_scen01 <- data.frame("ID" = numeric(), "scenario" = character())
+  user_favorites <- tibble("user" = character(),
+                               "school" = character(),
+                               "major" = character(),
+                               "occupation" = character(),
+                               "degree" = character())
+
   choosen_scenario <- character()
   favorite_temp <- character()
   obsList <- list()
@@ -585,6 +600,21 @@ server <- function(input, output, session) {
   checkList <- list()
   graphList <-vector(mode = "list")
   
+  eo_occuption_list <- c(character())
+  eo_entry_degree_list <- c(character())
+  eo_required_exp_list <- c(character())
+  
+  es_school_list <- c(character())
+  es_state_list <- c(character())
+  
+  em_school_list <<- c(character())
+  em_curriculum_list <<- c(character())
+  em_degree_list <<- c(character())
+  
+  scenario_source <- 1
+  scenario_file <- paste0(pro_user,"scenario.rds")
+  favorite_file <- paste0(pro_user,"favorite.rds")
+  schoolobsList <- list()
   graph_parameters <- ggplot() + 
     xlab('Years') +
     ylab('Total Earnings in Thousands') +
@@ -654,6 +684,10 @@ server <- function(input, output, session) {
     shinyjs::hide(id = "header4")
   }
   showscenario <- function() {
+    hideschool()
+    hidemajor()
+    hideoccupation()
+    hidedegree()
     shinyjs::show(id = "favorites")
     shinyjs::show(id = "scenario_text")
     shinyjs::show(id = "scenario_available")
@@ -755,6 +789,8 @@ server <- function(input, output, session) {
   }
   
   clear_schoolchoices <- function() {
+    school_list_selected <<- list()
+    school_cards()
     output$schoolchoice1 <- renderUI({NULL}) 
     output$schoolchoice2 <- renderUI({NULL}) 
     output$schoolchoice3 <- renderUI({NULL}) 
@@ -885,15 +921,12 @@ server <- function(input, output, session) {
   })
   observe({
     if(build_variables$current_page == 10){
-#      add_scenario()
-#      hideschool()
-#      hidemajor()
-#      hideoccupation()
- #     hidedegree()
+
       hideheader()
       hidechoices()
       hideline()
       hidenext()
+      build_radio()
       showscenario()
       output$add_favorite <- renderUI({actionButton(inputId = "add_favorite_button", label = "Add to Favorites") })
       output$build_new <- renderUI({actionButton(inputId = "build_new_button", label = "Build New Scenario...") })
@@ -920,7 +953,10 @@ server <- function(input, output, session) {
     }
   })
   update_fav_num <- function() {
-    favor_num <- user_scen01 %>% filter(scenario %in% "Favorite") 
+#old save    
+#    favor_num <- user_scen01 %>% filter(scenario %in% "Favorite") 
+#new save    
+    favor_num <- user_favorites %>% filter(user %in% pro_user)
     output$favorites <- renderUI({p(paste0("Favorite Options (", NROW(favor_num),")"))})
   }
 
@@ -973,23 +1009,15 @@ server <- function(input, output, session) {
   })
   
   observeEvent(input$school_button,{
-    temp_choice$school_status <<- 3
-    schoolclick <<- 1
     build_variables$current_page <<- 6
   })
   observeEvent(input$major_button,{
-    temp_choice$major_status <<- 3
-    majorclick <<- 1
     build_variables$current_page <<- 7
   })
   observeEvent(input$occupation_button,{
-    temp_choice$occupation_status <<- 3
-    occupationclick <<- 1
     build_variables$current_page <<- 8
   })
   observeEvent(input$degree_button,{
-    temp_choice$degree_status <<- 3
-    degreeclick <<- 1
     build_variables$current_page <<- 9
   })
   # 06 Next button ----
@@ -1005,26 +1033,33 @@ server <- function(input, output, session) {
       }
     }
     if(build_variables$current_page == 6){
+        temp_choice$school_status <<- 3
+        schoolclick <<- 1
         major_unavailable()
         occupation_unavailable()
         degree_unavailable()
         build_variables$current_page <<- 1 + pagetotal()
     }
     if(build_variables$current_page == 7){
+        temp_choice$major_status <<- 3
+        majorclick <<- 1
         school_unavailable()
         occupation_unavailable()
         degree_unavailable()
         build_variables$current_page <<- 1 + pagetotal()
     }
     if(build_variables$current_page == 8){
+        temp_choice$occupation_status <<- 3
+        occupationclick <<- 1
         school_unavailable()
         major_unavailable()
         degree_unavailable()
         build_variables$current_page <<- 1 + pagetotal()
     }
     if(build_variables$current_page == 9){
- #       if(!is_empty(input$degree_checkbox)){
           degree_list_selected <<- input$degree_checkbox
+          temp_choice$degree_status <<- 3
+          degreeclick <<- 1
           school_unavailable()
           major_unavailable()
           occupation_unavailable()
@@ -1043,11 +1078,69 @@ server <- function(input, output, session) {
           return()
         } else {
           school_list_selected <<- rbind(school_list_selected, input$school_next)
-          school_chip()
+  #        school_chip()
+          school_cards()
         }
       }
     }
   })
+  school_cards <- function() {
+#    print(school_list_selected)
+    school_temp <- school_filter %>% filter(INSTNM %in% school_list_selected)
+    #school_card <- school_list_selected    
+#    school_temp <- left_join(school_card, school_filter, by = "UNITID")
+    
+    if(NROW(school_temp) > 0){
+      output$schoolchoice <- renderUI({
+        args <- lapply(1:NROW(school_temp), function(.x) schoolcard2(.x,
+                                                                     name = school_temp$UNITID[.x],
+                                                                     school = school_temp$INSTNM[.x]))
+        args$cellArgs <- list(
+          style = "
+          width: 210px;
+          height: 50px;
+		      padding: 0px;
+		      padding-left: 12px;
+		      padding-right: 12px;
+		      top: 50%;
+		      border-color: #e2ac24;
+          background-color:#e2ac24;
+          margin: 10px;
+          font-size: 1em;
+          line-height: 50px;
+		      border-radius: 25px;
+		      border-bottom:none !important;
+		      color: white;		  
+          "
+        )        
+        do.call(shiny::flowLayout, args)        
+      })
+    } else {
+      output$schoolchoice <- renderUI({NULL})
+      schoolobsList <<- list()
+    }
+  }	  
+  schoolcard2 <- function(x,name,school) {
+    school_observer(name,school)  
+    trim_school <- strtrim(school, 20)
+    div(class = "newchip",
+        div(style = "display:inline-block;vertical-align:top;",
+            splitLayout(cellWidths = c("90%","10%"),
+                        p(trim_school),                        
+                        actionButton(inputId = paste0("schooldel",name),label = "x",
+                                     style = "margin:0px;color:white;padding:0px;font-size: 1em; border-color: #e2ac24; background-color: #e2ac24;top: 50%;")))        
+    )
+  }
+  school_observer <- function(name,school){
+    btName <- paste0("schooldel",name)
+    if(length(schoolobsList[[btName]]) == 0){
+      schoolobsList[[btName]] <<- observeEvent(input[[btName]], {
+        school_list_selected <<- school_list_selected[school_list_selected != school]
+        schoolobsList <<- list()
+        school_cards()
+      }, ignoreInit = TRUE, once = TRUE)
+    }
+  } 
   school_chip <- function() {
     if(NROW(school_list_selected) > 0){
       temp_school1 <- school_list_selected[1]
@@ -1409,34 +1502,52 @@ server <- function(input, output, session) {
     
   }
   add_scenario <- function(){
-    if(NROW(user_scen01) == 0){
+    user_scen_temp <- user_scenarios %>% distinct(scenario, .keep_all = TRUE)
+#    user_scen_temp <- user_scenarios %>% filter(user %in% pro_user) %>% distinct(scenario, .keep_all = TRUE)
+    if(NROW(user_scen_temp) == 0){
       scen_temp <- "Scenario 1"
     } else {
-      scen_temp2 <- user_scen01 %>% distinct(user_scen01$scenario, .keep_all = TRUE)
-      scen_temp2 <- scen_temp2[grep("Scenario", scen_temp2$scenario),]
-      scen_temp <- paste0("Scenario ",NROW(scen_temp2) + 1)
+      temp_val <- user_scenarios %>% select(scenario) %>% distinct(scenario, .keep_all = FALSE)
+      temp_val <- as.vector(temp_val$scenario)
+      temp_val <- str_remove_all(temp_val, "Scenario ")
+      temp_val <- max(as.numeric(temp_val))
+#      scen_temp2 <- user_scen_temp %>% distinct(user_scenarios$scenario, .keep_all = TRUE)
+#      scen_temp2 <- scen_temp2[grep("Scenario", scen_temp2$scenario),]
+      scen_temp <- paste0("Scenario ",temp_val + 1)
     }
-    scenario_temp <- backbone
-    if(!is_empty(school_list_selected)) {
-      school_temp <- filter(school_filter, INSTNM %in% school_list_selected) %>% select(UNITID)
-      scenario_temp <- filter(scenario_temp, UNITID %in% school_temp$UNITID)
+    if(!is_empty(school_list_selected)){
+      for(i in 1:NROW(school_list_selected)){
+        school_temp <- filter(school_filter, INSTNM %in% school_list_selected) %>% select(UNITID)
+        sch_temp <- tibble("user" = pro_user, "scenario" = scen_temp, "source" = "build",  "category" = "school", "id" = school_temp$UNITID[i] )
+        user_scenarios <<- rbind(user_scenarios, sch_temp)
+      }
     }
-    if(!is_empty(occupation_list_selected)) {
-      occupation_temp <- filter(occupation_filter, OCCNAME %in% occupation_list_selected) %>% select(OCCCODE)
-      scenario_temp <- filter(scenario_temp, OCCCODE %in% occupation_temp$OCCCODE)
+    if(!is_empty(major_list_selected)){
+      for(i in 1:NROW(major_list_selected)){
+        major_temp <- filter(major_filter, CIPNAME %in% major_list_selected) %>% select(CIPCODE)
+        maj_temp <- tibble("user" = pro_user, "scenario" = scen_temp, "source" = "build", "category" = "major", "id" = major_temp$CIPCODE[i] )
+        user_scenarios <<- rbind(user_scenarios, maj_temp)
+      }
     }
-    if(!is_empty(major_list_selected)) {
-      major_temp <- filter(major_filter, CIPNAME %in% major_list_selected) %>% select(CIPCODE)
-      scenario_temp<- filter(scenario_temp, CIPCODE %in% major_temp$CIPCODE)
+    if(!is_empty(occupation_list_selected)){
+      for(i in 1:NROW(occupation_list_selected)){
+        occupation_temp <- filter(occupation_filter, OCCNAME %in% occupation_list_selected) %>% select(OCCCODE)
+        occ_temp <- tibble("user" = pro_user, "scenario" = scen_temp, "source" = "build", "category" = "occupation", "id" = occupation_temp$OCCCODE[i] )
+        user_scenarios <<- rbind(user_scenarios, occ_temp)
+      }
     }
-    if(!is_empty(degree_list_selected)) {
-      degree_temp <- filter(degree_filter, LEVELName %in% degree_list_selected) %>% select(AWLEVEL)
-      scenario_temp <- filter(scenario_temp, AWLEVEL %in% degree_temp$AWLEVEL)
+    if(!is_empty(degree_list_selected)){
+      for(i in 1:NROW(degree_list_selected)){
+        degree_temp <- filter(degree_filter, LEVELName %in% degree_list_selected) %>% select(AWLEVEL)
+        deg_temp <- tibble("user" = pro_user, "scenario" = scen_temp, "source" = "build", "category" = "degree", "id" = degree_temp$AWLEVEL[i] )
+        user_scenarios <<- rbind(user_scenarios, deg_temp)
+      }
     }
-    scenario_temp <- scenario_temp %>% select(ID) %>% mutate(scenario = scen_temp)
-    user_scen01 <<- rbind(user_scen01, scenario_temp)
-    
-    scen_temp2 <- user_scen01 %>% distinct(user_scen01$scenario, .keep_all = TRUE)
+    saveRDS(user_scenarios, scenario_file)
+
+  }
+build_radio <- function(){  
+    scen_temp2 <- user_scenarios %>% filter(user %in% pro_user) %>% distinct(user_scenarios$scenario, .keep_all = TRUE)
     scen_temp2 <- scen_temp2[grep("Scenario", scen_temp2$scenario),]
 #    write.csv(user_scen01, "userdata.csv")
     output$scenario_available <- renderUI({
@@ -1450,8 +1561,28 @@ server <- function(input, output, session) {
     create_scenario_table()
   })
   create_scenario_table <- function(){
-    scenario_temp <- filter(user_scen01, scenario %in% choosen_scenario) %>% select(ID)
-    scenario_temp <- left_join(scenario_temp, backbone, by = "ID")
+    scen_temp <- filter(user_scenarios, user %in% pro_user, scenario %in% choosen_scenario)
+    sch_temp <- scen_temp %>% filter(category == "school") %>% select(id)
+    maj_temp <- scen_temp %>% filter(category == "major") %>% select(id)
+    occ_temp <- scen_temp %>% filter(category == "occupation") %>% select(id)
+    deg_temp <- scen_temp %>% filter(category == "degree") %>% select(id)
+    
+    scenario_temp <- backbone
+    if(!is_empty(sch_temp$id)) {
+      scenario_temp <- filter(scenario_temp, UNITID %in% sch_temp$id)
+    }
+    if(!is_empty(maj_temp$id)) {
+      scenario_temp <- filter(scenario_temp, CIPCODE %in% maj_temp$id)
+    }
+    if(!is_empty(occ_temp$id)) {
+      scenario_temp <- filter(scenario_temp, OCCCODE %in% occ_temp$id)
+    }
+    if(!is_empty(deg_temp$id)) {
+      scenario_temp <- filter(scenario_temp, AWLEVEL %in% deg_temp$id)
+    }
+    
+#    scenario_temp <- filter(user_scen01, scenario %in% choosen_scenario) %>% select(ID)
+#    scenario_temp <- left_join(scenario_temp, backbone, by = "ID")
     scenario_temp <- left_join(scenario_temp, school_scenario2, by = "UNITID")
     scenario_temp <- left_join(scenario_temp, major_scenario2, by = "CIPCODE")
     scenario_temp <- left_join(scenario_temp, degree_scenario2, by = "AWLEVEL")
@@ -1507,21 +1638,30 @@ server <- function(input, output, session) {
   observeEvent(input$add_favorite_button, {
     req(input$scenario_table_rows_selected)
     favorite_to_add <- favorite_temp[input$scenario_table_rows_selected,]
-    favorite_to_add <- favorite_to_add %>% select(ID) %>% mutate(scenario = "Favorite")
-    favor_temp <- user_scen01 %>% filter(scenario %in% "Favorite") 
-    favorite_to_add <- favorite_to_add[(!favorite_to_add$ID %in% favor_temp$ID),] 
-    if(NROW(favorite_to_add) > 0) {
-      user_scen01 <<- rbind(user_scen01, favorite_to_add)
+    
+    fav_school <- favorite_to_add %>% select(UNITID)
+    fav_major <- favorite_to_add %>% select(CIPCODE)
+    fav_occupation <- favorite_to_add %>% select(OCCCODE)
+    fav_degree <- favorite_to_add %>% select(AWLEVEL)
+    
+    favor_temp <- user_favorites %>% filter(school %in% fav_school$UNITID, major %in% fav_major$CIPCODE, occupation %in% fav_occupation$OCCCODE,
+                                            degree %in% fav_degree$AWLEVEL)
+    if(is_empty(favor_temp$school)){
+      fav_temp <- tibble("user" = pro_user, "school" = fav_school$UNITID, "major" = fav_major$CIPCODE,
+                             "occupation" = fav_occupation$OCCCODE, "degree" = fav_degree$AWLEVEL)
+      user_favorites <<- rbind(user_favorites, fav_temp)
+      saveRDS(user_favorites, favorite_file)
+      update_fav_num()
+      favorite_cards()
     }
-    update_fav_num()
-  #       saveRDS(user_scen01, "Scenariosave.rds")
-    favorite_cards()
   })
   observeEvent(input$return_dashboard_button, {
     updateTabItems(session, "tabs", selected = "dashboard")
   })
   observeEvent(input$build_new2, {
+    scenario_source <<- 2
     updateTabItems(session, "tabs", selected = "build")
+   
   })
   observeEvent(input$dash_schools, {
     updateTabItems(session, "tabs", selected = "school")
@@ -1545,7 +1685,7 @@ server <- function(input, output, session) {
     clear_majorchoices()
     clear_schoolchoices()
     updatePickerInput(session, inputId = "school_next", choices = school_list$INSTNM)
-    updatePickerInput(session, inputId = "major_next", choices = occupation_list$OCCNAME)
+    updatePickerInput(session, inputId = "major_next", choices = major_list$CIPNAME)
     updatePickerInput(session, inputId = "occupation_next", choices = occupation_list$OCCNAME)
     updateCheckboxGroupInput(session, inputId = "degree_checkbox", choices = c(degree_list$LEVELName), selected = NULL)
     school_list_selected <<- vector(mode = "list")
@@ -1555,21 +1695,35 @@ server <- function(input, output, session) {
     build_variables$current_page <<- 1
   })
   observe({
-    if(file.exists("Scenariosave.rds")){
-      user_scen01 <<- readRDS("Scenariosave.rds")
-      favor_temp <- user_scen01 %>% filter(scenario %in% "Favorite") 
+    if(file.exists(scenario_file)){
+      user_scenarios <<- readRDS(scenario_file)
+    }
+    if(file.exists(favorite_file)){
+      user_favorites <<- readRDS(favorite_file)
+      favor_temp <- user_favorites 
       if(NROW(favor_temp) > 0) {
         favorite_cards()
       }
     }
   })
   favorite_cards <- function() {
+    fav_card <- tibble()
+    fav_temp <- user_favorites %>% filter(user %in% pro_user)
+    for(i in 1:NROW(fav_temp)){
+      scen_temp <- backbone
+      scen_temp <- scen_temp %>% filter(UNITID %in% fav_temp$school[i], CIPCODE %in% fav_temp$major[i],
+                                                OCCCODE %in% fav_temp$occupation[i], AWLEVEL %in% fav_temp$degree[i]) %>% select(ID)
+      fav_card <- rbind(fav_card, scen_temp)
+    }
+    fav_card <- fav_card %>% mutate("scenario" = "Favorite")
+    user_scen01 <<- fav_card
     scenario_temp <- user_scen01 %>% filter(scenario %in% "Favorite") 
     scenario_temp <- left_join(scenario_temp, backbone, by = "ID")
     scenario_temp <- left_join(scenario_temp, school_scenario, by = "UNITID")
     scenario_temp <- left_join(scenario_temp, major_scenario, by = "CIPCODE")
     scenario_temp <- left_join(scenario_temp, degree_scenario, by = "AWLEVEL")
     scenario_temp <- left_join(scenario_temp, occupation_scenario, by = "OCCCODE")
+
     if(NROW(scenario_temp) > 0){
       output$favorite_container <- renderUI({
         args <- lapply(1:NROW(scenario_temp), function(.x) card2(.x,
@@ -1627,6 +1781,9 @@ server <- function(input, output, session) {
     if(length(obsList[[btName]]) == 0){
       obsList[[btName]] <<- observeEvent(input[[btName]], {
         user_scen01 <<- user_scen01 %>% filter(!(ID == name & scenario == "Favorite"))
+        obs_temp <- left_join(user_scen01, backbone, by = "ID")
+        user_favorites <<- user_favorites %>% filter(school %in% obs_temp$UNITID & major %in% obs_temp$CIPCODE & occupation %in% obs_temp$OCCCODE & degree %in% obs_temp$AWLEVEL)
+        saveRDS(user_favorites, favorite_file)
         update_fav_num()
         obsList <<- list()
         favorite_cards()
@@ -1654,7 +1811,7 @@ server <- function(input, output, session) {
     detailNm <- paste0("details",name)
     if(length(detailList[[detailNm]]) == 0){
       detailList[[detailNm]] <<- observeEvent(input[[detailNm]], {
-        print(detailList)
+#        print(detailList)
       },ignoreInit = TRUE)
     }
   }
@@ -1677,7 +1834,7 @@ server <- function(input, output, session) {
       graph_backbone <- graph_backbone %>% select("ID", "INSTNM", "CIPNAME", "OCCNAME", "LEVELName", "X17p", "Years","TotCstOutHi","MedOccF")
       
       #Beginning Loop to create data
-      graph_scenario <- data.frame("Years" = numeric(), "Scenario" = character(), "Running_Total" = numeric(), stringsAsFactors = FALSE)
+      graph_scenario <- tibble("Years" = numeric(), "Scenario" = character(), "Running_Total" = numeric(), stringsAsFactors = FALSE)
       
       for(j in(1:nrow(graph_backbone))){
         years <- 0
@@ -1692,14 +1849,14 @@ server <- function(input, output, session) {
                                str_trunc(graph_backbone$INSTNM[j],30,"right"),"\n",
                                str_trunc(graph_backbone$LEVELName[j],30,"right"),"\n")
             if(years == 0){
-              graph_temp <- data.frame("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
+              graph_temp <- tibble("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
               graph_scenario <- rbind(graph_scenario, graph_temp)
             }
             
             years <- years + 1
             running_total <- running_total - graph_backbone$TotCstOutHi[j]
             running_total <- round(running_total, digits = 0)
-            graph_temp <- data.frame("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
+            graph_temp <- tibble("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
             graph_scenario <- rbind(graph_scenario, graph_temp)
           }
           TTuition <- (-running_total)
@@ -1708,14 +1865,14 @@ server <- function(input, output, session) {
           TTuition <- 1
         }
         if(years == 0){
-          graph_temp <- data.frame("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
+          graph_temp <- tibble("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
           graph_scenario <- rbind(graph_scenario, graph_temp)
         }
         years <- years + 1
         year_change <- graph_backbone$X17p[j]
         running_total <- running_total + year_change
         TIncome <- TIncome + year_change
-        graph_temp <- data.frame("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
+        graph_temp <- tibble("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
         graph_scenario <- rbind(graph_scenario, graph_temp)
         for(k in(1:(50 - years))){
           years <- years + 1
@@ -1725,11 +1882,11 @@ server <- function(input, output, session) {
           TIncome <- round(TIncome, digits = 0)
           running_total <- running_total + year_change
           running_total <- round(running_total, digits = 0)
-          graph_temp <- data.frame("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
+          graph_temp <- tibble("Years" = years, "Scenario" = scenario, "Running_Total" = running_total)
           graph_scenario <- rbind(graph_scenario, graph_temp)
         }
         
-        #add graph data        
+# add graph data        
         graph_scene <- graph_scenario %>% filter(scenario == scenario)
         graph_parameters <- graph_parameters + geom_line(data = graph_scene, aes(x = Years, y = Running_Total/1000, colour = Scenario),size = 1.5, show.legend = TRUE)
       }
@@ -1755,6 +1912,18 @@ server <- function(input, output, session) {
     if(input$es_annual_lo >= 0){
       es_school_temp <- filter(es_school_temp, TotCstOutLo <= input$es_annual_lo)
     }
+    
+    es_school_list <<- unique(es_school_temp$INSTNM)
+    es_state_list <<- unique(es_school_temp$State)
+    
+    if(is.null(input$es_school) |input$es_school == ''){
+      updateSelectInput(session, inputId = "es_school", label = "School",
+                        choices = isolate(c(All = '', sort(es_school_list))), selected = '')
+    }
+    if(is.null(input$es_state) |input$es_state == ''){
+      updateSelectInput(session, inputId = "es_state", label = "State",
+                        choices = isolate(c(All = '', sort(es_state_list))), selected = '')
+    }
     es_school_temp <- es_school_temp %>% mutate(GRADR150 = BAGR150 + L4GR150)   
     es_school_temp <- es_school_temp %>% select("INSTNM", "STABBR", "WEBADDR", "APPLCN", "ADMSSN", "ENRLT","ROOM_BOARD",
                                               "GRADR150", "TotCstInHi", "TotCstOutHi", "TotCstInLo", "TotCstOutLo")
@@ -1762,10 +1931,6 @@ server <- function(input, output, session) {
     es_temp1 <- es_school_temp$TotCstInLo == 0
     es_school_temp <- cbind(es_school_temp, es_temp1)
 
-    
-#      occupation_state <- occupation_list$OCCNAME %in% occupation_temp3$OCCNAME
-#    occupation_list2 <- cbind(occupation_list2,occupation_state)
-#    occupation_list2 <- occupation_list2[order(occupation_list2$occupation_state),]
     #Rename table column headers     
     es_school_temp <- es_school_temp %>% rename("School<br>Name" = "INSTNM", "State" = "STABBR",
                                                 "Web<br>Address" = "WEBADDR", "Applications" = "APPLCN",
@@ -1820,6 +1985,7 @@ server <- function(input, output, session) {
     }
     occupation_temp <- filter(occupation_temp, EmplyPC >= input$eo_growth_rate)
     occupation_temp <- filter(occupation_temp, X17p >= input$eo_starting_salary)
+    
     eo_occupation_list <<- unique(occupation_temp$OCCNAME)
     eo_entry_degree_list <<- unique(occupation_temp$Entry_Degree)
     eo_required_exp_list <<- unique(occupation_temp$Experience)
@@ -1960,6 +2126,16 @@ server <- function(input, output, session) {
         )
     })
   })
+  observeEvent(input$tabs, {
+    req(input$tabs == "build")
+    if(scenario_source == 2){
+      build_variables$current_page <<-1
+      scenario_source <<- 1
+    } else {
+    build_variables$current_page <<- 10
+    }
+  })
+  
 }
 
 shinyApp(ui, server) 
