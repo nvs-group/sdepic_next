@@ -1,7 +1,10 @@
+* {
+    font-family: "Arial";
+    box-sizing:border-box;
+}
 #build_header1 {
     color: #ccccd1;
-    font-family: "Arial";
-    font-size: 28px;
+    font-size: 1.75em;
     margin-top: 3em !important;
     margin-bottom: 1em !important;
     line-height: '200%';
@@ -9,15 +12,13 @@
 }
 #build_header2 {
     color: #05416d;
-    font-family: "Arial";
-    font-size: 40px;
+    font-size: 2.5em;
     margin-bottom: 1em !important;
     padding-left:64px;
 }
 #build_header3 {
     color: #05416d;
-    font-family: "Arial";
-    font-size: 22px;
+    font-size: 1.375em;
     padding: 0px !important;
     margin-top: -20px;
     margin-bottom: -10px;
@@ -26,22 +27,19 @@
 }
 #build_header4 {
     color: #05416d;
-    font-family: "Arial";
-    font-size: 22px;
+    font-size: 1.375em;
     margin-top: -5px;       
     line-height: "100%";
     padding-left:64px;
 }
 #scenario_text1 {
     color: #05416d;
-    font-family: "Arial";
-    font-size: 40px;
+    font-size:2.5em;
     margin-bottom: 1em !important;
     padding-left:34px;
 }
 #scenario_text3 {
     color: #05416d;
-    font-family: "Arial";
     font-size: 20px;
     margin-bottom: 0px !important;
     padding-left:34px;
@@ -55,10 +53,9 @@
 }
 #current_date {
     margin-top: 2em;
-    font-family: "Arial";
     margin-right: 0px;
     font-weight:bolder;
-    font-size: 22px;
+    font-size: 1.375em;
     color: #999999;
     align-content: right;
 }
@@ -66,9 +63,8 @@
     margin-top: 2em;
     margin-left: 70px;
     padding-left: 20px;
-    font-family: "Arial";
     color: #999999;
-    font-size: 22px;
+    font-size: 1.375em;
     font-weight: bolder;
     
 }
@@ -87,6 +83,7 @@
 #bn2, #bn3, #bn4 {
     margin-left: 30px;
     margin-right: 0px;
+    margin-top: 5px;
     padding: 15px;
     padding-top: 0px;
     border-radius: 10px;
@@ -100,8 +97,7 @@
     padding-top: 45px;
     border:2px solid #e9ecee;
     border-radius: 10px;
-    font-family:"Arial";
-    font-size:22px;
+    font-size:1.375em;
     }
 #dash_buttons {
     margin-top: 0;
@@ -110,7 +106,6 @@
 }
 #favorites {
     color: #05416d;
-    font-family: "Arial";
     font-size: 22px;
     margin-bottom: 1em !important;
 }
@@ -131,16 +126,14 @@
 }
 .main-sidebar {    
     padding-top: 0px !important;
-    font-family: "Arial" !important;
-    font-size: 22px !important;
+    font-size: 1.375em !important;
   
 }
 .skin-blue .main-sidebar {
     position: absolute;
     background-color: #05416d !important;
     color: #ffffff !important;
-    font-family: "Arial" !important;
-    font-size: 22px !important;
+    font-size: 1.375em !important;
     padding-top: 0px !important;
     width: 285px !important;
 }
@@ -209,7 +202,7 @@
     height: 50px !important;
     background-color: #4fa0f7;
     color: white;
-    font-size: 22px;
+    font-size: 1.375em;
     margin-top: 3em !important;
     border-radius: 20px;    
 }
@@ -218,7 +211,7 @@
     height: 50px !important;
     background-color: #4fa0f7;
     color: white;
-    font-size: 22px;
+    font-size: 1.375em;
     margin-top: 1em !important;
     border-radius: 20px;    
 }
@@ -231,7 +224,7 @@
     height: 50px !important;
     background-color: #4fa0f7;
     color: white;
-    font-size: 22px;
+    font-size: 1.375em;
     margin-top: 1em !important;
     margin-left: 55px !important;
     border-radius: 20px;    
@@ -241,7 +234,7 @@
     height: 50px !important;
     background-color: #4fa0f7;
     color: white;
-    font-size: 22px;
+    font-size: 1.375em;
     margin-top: 1em !important;
     border-radius: 20px;    
 }
@@ -251,7 +244,7 @@
     border: 1px solid #4fa0f7;\
     background-color: white;
     color: #4fa0f7;
-    font-size:22px;
+    font-size:1.375em;
     margin-top: 3em !important;    
     border-radius: 20px;
 }
@@ -260,12 +253,10 @@
     height:90px;
     padding-left:64px;
 }
-
 #school_add {
     background-color: #05416d;
     color:white;
-    margin-top: 3em;
-    
+    margin-top: 3em;    
 }
 #schoolinfo2 {
     height:150px;
@@ -312,7 +303,7 @@
     height: 260px;
     margin-top: 3em;
     padding-left:64px;
-    font-size: 22px !important;
+    font-size: 1.375em !important;
 }
 #degree_checkbox {
     column-count: 2;
@@ -338,7 +329,7 @@ span {
     margin: 10px;
     height: 0px !important;
     width: 225px;  
-    font-size: 15px;
+    font-size: 1em;
     line-height: 50px;
     border-radius: 25px;
     border-bottom:none !important;
@@ -364,7 +355,7 @@ span {
     background-color:#e2ac24;
     top: 50%;
     color: white;
-    font-size:16px;
+    font-size:1em;
     font-weight:bold;
 }
 #school_del1:hover {
@@ -398,7 +389,7 @@ span {
     background-color:#37b749;
     top: 50%;
     color: white;
-    font-size:16px;
+    font-size:1em;
     font-weight:bold;
 }
 #major_del1:hover {
@@ -432,7 +423,7 @@ span {
     background-color:#477ddd;
     top: 50%;
     color: white;
-    font-size:16px;
+    font-size:1em;
     font-weight:bold;
 }
 #occupation_del1:hover {
@@ -451,11 +442,10 @@ span {
     color:#000;
 }
 #scenario_radio {
-    height: 170px;
+    height: 175px;
     overflow-y:auto;
 }
 #scenario_table {
-    font-family: "Arial";
     margin-left: 0px !important;
     margin-right: 30px !important;
     padding-right: 30px;
@@ -469,11 +459,10 @@ span {
     text-align:left;
     background-color:#4fa0f7;
     color:white;
-    font-size:30px;
-    margin-right:30px;
+    font-size:1.875em;
+    margin-right:1em;
 }
-.header_label2 {
-    font-family: "Arial";
+.header_label2 {    
     padding-left:30px;
     padding-top:20px;
     padding-bottom:20px;
@@ -494,8 +483,7 @@ span {
     margin-right: 80px;
     margin-left: 80px;
 }
-thead,th {
-    font-family: "Arial";
+thead,th {    
     text-align: center;
 }
 #favorite_box {
@@ -534,14 +522,26 @@ thead,th {
     background-color:white;
     color:#477ddd;
     border: 0px;
+    padding-left:0px;
+    font-size:1em;
+    padding-top:0px;
 }
 #dash_majors {
     background-color:white;
     color:#37b749;
     border: 0px;
+    padding-left:0px;
+    font-size:1em;
+    padding-top:0px;
 }
 #dash_schools {
     background-color:white;
     color:#e2ac24;
     border: 0px;
+    padding-left:0px;
+    font-size:1em;
+    padding-top:0px;
+}
+#es_table .table th {
+    text-align: left;
 }
