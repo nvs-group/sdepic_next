@@ -43,13 +43,17 @@ occupation_master <- readRDS("data/Occupations.rds")
 school_master <- readRDS("data/Schools.rds")
 school_master2 <- school_master %>% filter(UNITID %in% unique(backbone$UNITID))
 school_master2 <- school_master2 %>% mutate(ROOM_BOARD = (ROOMAMT + BOARDAMT + RMBRDAMT))
+school_master3 <- school_master2
+school_master3$INSTNM <- make.unique(as.character(school_master3$INSTNM), sep = "_")
+
+
 
 state_abbr_master <- readRDS("data/state_abbr.rds")
 school_master2 <- left_join(school_master2, state_abbr_master, by = "STABBR")
 today <- Sys.Date()
 current_date2 <- format(today, "%d, %B %Y, %A")
 
-school_list <- school_master %>% filter(UNITID %in% unique(backbone$UNITID)) %>% select(INSTNM)
+school_list <- school_master3 %>% filter(UNITID %in% unique(backbone$UNITID)) %>% select(INSTNM)
 school_list <- school_list[order(school_list),,drop = FALSE]
 school_list2 <- school_list
 
@@ -76,7 +80,9 @@ pro_email <- "myemail@profile.com"
 pro_state <- "Virginia"
 pro_user <- "USER1"
 # 03 Functions ----
-
+school_list4 <- tibble("INSTNM" = character())
+school_list4 <- as_tibble(make.unique(as.character(school_list$INSTNM), sep = "_"))
+#write_csv(school_master, "School.csv")
 
 # 04.1 Header ----
 header <- dashboardHeaderPlus()
@@ -273,9 +279,11 @@ body <- dashboardBody(
                              actionButton(inputId = "major_add", label = "+")),
                     fluidRow(column(width = 1),
                              column(width = 6,
-                                    div(id = "majorinfo2",  column(width = 4, uiOutput("majorchoice1"),uiOutput("majorchoice4")),
-                                        column(width = 4, uiOutput("majorchoice2"), uiOutput("majorchoice5")),
-                                        column(width = 4, uiOutput("majorchoice3"))
+                                    div(id = "majorinfo2", 
+                                        uiOutput("majorchoice")
+ #                                       column(width = 4, uiOutput("majorchoice1"),uiOutput("majorchoice4")),
+ #                                       column(width = 4, uiOutput("majorchoice2"), uiOutput("majorchoice5")),
+ #                                       column(width = 4, uiOutput("majorchoice3"))
                                     ))),
                     fluidRow(column(width = 1),
                              column(width = 6,
@@ -296,9 +304,11 @@ body <- dashboardBody(
                              actionButton(inputId = "occupation_add", label = "+")),
                     fluidRow(column(width = 1),
                              column(width = 6,
-                                    div(id = "occupationinfo2", column(width = 4, uiOutput("occupationchoice1"),uiOutput("occupationchoice4")),
-                                        column(width = 4, uiOutput("occupationchoice2"), uiOutput("occupationchoice5")),
-                                        column(width = 4, uiOutput("occupationchoice3"))
+                                    div(id = "occupationinfo2",
+                                        uiOutput("occupationchoice")
+  #                                     column(width = 4, uiOutput("occupationchoice1"),uiOutput("occupationchoice4")),
+  #                                      column(width = 4, uiOutput("occupationchoice2"), uiOutput("occupationchoice5")),
+  #                                      column(width = 4, uiOutput("occupationchoice3"))
                                     ))),
                     fluidRow(column(width = 1),
                              column(width = 6,
@@ -327,10 +337,11 @@ body <- dashboardBody(
                                         div(class = "header_label", p("Scenario Table")),
                                         dataTableOutput(outputId = "scenario_table")))
                     ),
-                    fluidRow(column(width = 2),
+                    fluidRow(column(width = 3,
+                                    uiOutput("return_current")),
                              column(width = 3,
                                     uiOutput("add_favorite")),
-                             column(width = 4,
+                             column(width = 3,
                                     uiOutput("build_new")),
                              column(width = 3,
                                     uiOutput("return_dashboard"))),
@@ -547,7 +558,7 @@ server <- function(input, output, session) {
   }) 
   build_variables <- reactiveValues(current_page = 1)
   temp_choice <- reactiveValues(school_status = 1, major_status = 1, occupation_status = 1, degree_status = 1)
-#  temp_scenario <- reactiveValues(page2 = 0, page4 = 0, page6 = 0, page8 = 0)
+#
   schoolclick <- 0
   majorclick <- 0
   occupationclick <- 0
@@ -555,7 +566,7 @@ server <- function(input, output, session) {
 #  load data
   number_favorites <- 0
   major_filter <- cips
-  school_filter <- school_master %>% select("UNITID", "INSTNM")
+  school_filter <- school_master3 %>% select("UNITID", "INSTNM")
   occupation_filter <- occupation_master %>% select("OCCNAME", "OCCCODE")
   degree_filter <- degree_master
   
@@ -594,6 +605,7 @@ server <- function(input, output, session) {
                                "degree" = character())
 
   choosen_scenario <- character()
+  new_scenario_name <- character()
   favorite_temp <- character()
   obsList <- list()
   detailList <- list()
@@ -612,9 +624,13 @@ server <- function(input, output, session) {
   em_degree_list <<- c(character())
   
   scenario_source <- 1
+  edit_scenario <- 0
   scenario_file <- paste0(pro_user,"scenario.rds")
   favorite_file <- paste0(pro_user,"favorite.rds")
   schoolobsList <- list()
+  majorobsList <- list()
+  occupationobsList <- list()
+  
   graph_parameters <- ggplot() + 
     xlab('Years') +
     ylab('Total Earnings in Thousands') +
@@ -692,6 +708,7 @@ server <- function(input, output, session) {
     shinyjs::show(id = "scenario_text")
     shinyjs::show(id = "scenario_available")
     shinyjs::show(id = "dt_scenario")
+    shinyjs::show(id = "return_current")
     shinyjs::show(id = "add_favorite")
     shinyjs::show(id = "build_new")
     shinyjs::show(id = "return_dashboard")
@@ -701,6 +718,7 @@ server <- function(input, output, session) {
     shinyjs::hide(id = "scenario_text")
     shinyjs::hide(id = "scenario_available")
     shinyjs::hide(id = "dt_scenario")
+    shinyjs::hide(id = "return_current")
     shinyjs::hide(id = "add_favorite")
     shinyjs::hide(id = "build_new")
     shinyjs::hide(id = "return_dashboard")
@@ -791,25 +809,14 @@ server <- function(input, output, session) {
   clear_schoolchoices <- function() {
     school_list_selected <<- list()
     school_cards()
-    output$schoolchoice1 <- renderUI({NULL}) 
-    output$schoolchoice2 <- renderUI({NULL}) 
-    output$schoolchoice3 <- renderUI({NULL}) 
-    output$schoolchoice4 <- renderUI({NULL}) 
-    output$schoolchoice5 <- renderUI({NULL}) 
   }
   clear_majorchoices <- function() {
-    output$majorchoice1 <- renderUI({NULL}) 
-    output$majorchoice2 <- renderUI({NULL}) 
-    output$majorchoice3 <- renderUI({NULL}) 
-    output$majorchoice4 <- renderUI({NULL}) 
-    output$majorchoice5 <- renderUI({NULL}) 
+    major_list_selected <<- list()
+    major_cards()
   }
   clear_occupationchoices <- function() {
-    output$occupationchoice1 <- renderUI({NULL}) 
-    output$occupationchoice2 <- renderUI({NULL}) 
-    output$occupationchoice3 <- renderUI({NULL}) 
-    output$occupationchoice4 <- renderUI({NULL}) 
-    output$occupationchoice5 <- renderUI({NULL}) 
+    occupation_list_selected <<- list()
+    occupation_cards()
   }
   pagetotal <- function() {
     temp <- schoolclick + majorclick + occupationclick + degreeclick
@@ -926,8 +933,11 @@ server <- function(input, output, session) {
       hidechoices()
       hideline()
       hidenext()
+#      output$scenario_table <- renderDataTable({NULL})
       build_radio()
+      
       showscenario()
+      output$return_current <- renderUI({actionButton(inputId = "return_current_button", label = "Return to Scenario")})
       output$add_favorite <- renderUI({actionButton(inputId = "add_favorite_button", label = "Add to Favorites") })
       output$build_new <- renderUI({actionButton(inputId = "build_new_button", label = "Build New Scenario...") })
       output$return_dashboard <- renderUI({actionButton(inputId = "return_dashboard_button", label = "Return to Dashboard") })
@@ -943,19 +953,15 @@ server <- function(input, output, session) {
             p("will be saved to"),
             p("your dashboard"),
             p("where you can"),
-            p("view compri-"),
+            p("view compari-"),
             p("son graphs and"),
             p("return on invest-"),
             p("ment reports.")
         )
       })
-      #       create_scenario_table()
     }
   })
   update_fav_num <- function() {
-#old save    
-#    favor_num <- user_scen01 %>% filter(scenario %in% "Favorite") 
-#new save    
     favor_num <- user_favorites %>% filter(user %in% pro_user)
     output$favorites <- renderUI({p(paste0("Favorite Options (", NROW(favor_num),")"))})
   }
@@ -1010,21 +1016,25 @@ server <- function(input, output, session) {
   
   observeEvent(input$school_button,{
     build_variables$current_page <<- 6
+    schoolclick <<- 1
   })
   observeEvent(input$major_button,{
     build_variables$current_page <<- 7
+    majorclick <<- 1
   })
   observeEvent(input$occupation_button,{
     build_variables$current_page <<- 8
+    occupationclick <<- 1
   })
   observeEvent(input$degree_button,{
     build_variables$current_page <<- 9
+    degreeclick <<- 1
   })
   # 06 Next button ----
   observeEvent(input$next_button,{
     if(build_variables$current_page == 5) {
       if(is_empty(major_list_selected) & is_empty(degree_list_selected) & is_empty(occupation_list_selected) & is_empty(school_list_selected)){
-        showModal(modalDialog(title = "Please select one item",
+        showModal(modalDialog(title = "Please select at least one item",
                               "Unable to build scenario!",
                               easyClose = TRUE))
       } else {
@@ -1064,10 +1074,7 @@ server <- function(input, output, session) {
           major_unavailable()
           occupation_unavailable()
           build_variables$current_page <<- 1 + pagetotal()
-        
     }
-    
-    
   })
 
   # 07 school info ----    
@@ -1078,18 +1085,13 @@ server <- function(input, output, session) {
           return()
         } else {
           school_list_selected <<- rbind(school_list_selected, input$school_next)
-  #        school_chip()
           school_cards()
         }
       }
     }
   })
   school_cards <- function() {
-#    print(school_list_selected)
     school_temp <- school_filter %>% filter(INSTNM %in% school_list_selected)
-    #school_card <- school_list_selected    
-#    school_temp <- left_join(school_card, school_filter, by = "UNITID")
-    
     if(NROW(school_temp) > 0){
       output$schoolchoice <- renderUI({
         args <- lapply(1:NROW(school_temp), function(.x) schoolcard2(.x,
@@ -1100,8 +1102,7 @@ server <- function(input, output, session) {
           width: 210px;
           height: 50px;
 		      padding: 0px;
-		      padding-left: 12px;
-		      padding-right: 12px;
+		      padding-left: 15px;
 		      top: 50%;
 		      border-color: #e2ac24;
           background-color:#e2ac24;
@@ -1122,10 +1123,10 @@ server <- function(input, output, session) {
   }	  
   schoolcard2 <- function(x,name,school) {
     school_observer(name,school)  
-    trim_school <- strtrim(school, 20)
+    trim_school <- strtrim(school, 22)
     div(class = "newchip",
-        div(style = "display:inline-block;vertical-align:top;",
-            splitLayout(cellWidths = c("90%","10%"),
+        div(style = "display:inline-block;vertical-align:top;width:210px;",
+            splitLayout(cellWidths = c("80%","20%"),
                         p(trim_school),                        
                         actionButton(inputId = paste0("schooldel",name),label = "x",
                                      style = "margin:0px;color:white;padding:0px;font-size: 1em; border-color: #e2ac24; background-color: #e2ac24;top: 50%;")))        
@@ -1141,79 +1142,6 @@ server <- function(input, output, session) {
       }, ignoreInit = TRUE, once = TRUE)
     }
   } 
-  school_chip <- function() {
-    if(NROW(school_list_selected) > 0){
-      temp_school1 <- school_list_selected[1]
-      temp_school1 <- strtrim(temp_school1, 20)
-      output$schoolchoice1 <- renderUI({
-        div(class = "chip",id = "sc1",splitLayout(cellWidths = c("80%","20%"),p(temp_school1),
-                                                  actionButton(inputId = "school_del1", label = "x")),  style = "border-bottom:none;")
-      })
-    } else {output$schoolchoice1 <- renderUI({NULL}) }
-    if(NROW(school_list_selected) > 1){
-      temp_school2 <- school_list_selected[2]
-      temp_school2 <- strtrim(temp_school2, 20)
-      output$schoolchoice2 <- renderUI({
-        div(class = "chip",id = "sc2",splitLayout(cellWidths = c("80%","20%"),p(temp_school2),
-                                                  actionButton(inputId = "school_del2", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$schoolchoice2 <- renderUI({NULL}) }
-    if(NROW(school_list_selected) > 2){
-      temp_school3 <- school_list_selected[3]
-      temp_school3 <- strtrim(temp_school3, 20)
-      output$schoolchoice3 <- renderUI({
-        div(class = "chip",id = "sc3",splitLayout(cellWidths = c("80%","20%"),p(temp_school3),
-                                                  actionButton(inputId = "school_del3", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$schoolchoice3 <- renderUI({NULL}) }
-    if(NROW(school_list_selected) > 3){
-      temp_school4 <- school_list_selected[4]
-      temp_school4 <- strtrim(temp_school4, 20)
-      output$schoolchoice4 <- renderUI({
-        div(class = "chip",id = "sc4",splitLayout(cellWidths = c("80%","20%"),p(temp_school4),
-                                                  actionButton(inputId = "school_del4", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$schoolchoice4 <- renderUI({NULL}) }
-    if(NROW(school_list_selected) > 4){
-      temp_school5 <- school_list_selected[5]
-      temp_school5 <- strtrim(temp_school5, 20)
-      output$schoolchoice5 <- renderUI({
-        div(class = "chip",id = "sc5",splitLayout(cellWidths = c("80%","20%"),p(temp_school5),
-                                                  actionButton(inputId = "school_del5", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$schoolchoice5 <- renderUI({NULL}) }
-  }
-  observeEvent(input$school_del1, {
-    
-    school_list_selected <<- school_list_selected[-1,,drop = FALSE]
-    if(NROW(school_list_selected) > 0){
-      output$schoolchoice1 <- renderUI({NULL})
-      school_chip()
-    } else {
-      output$schoolchoice1 <- renderUI({NULL})
-      school_list_selected <<- vector(mode = "list")
-    }
-  })
-  observeEvent(input$school_del2, {
-    school_list_selected <<- school_list_selected[-2,,drop = FALSE]
-    output$schoolchoice2 <- renderUI({NULL})
-    school_chip()
-  })
-  observeEvent(input$school_del3, {
-    school_list_selected <<- school_list_selected[-3,,drop = FALSE]
-    output$schoolchoice3 <- renderUI({NULL})
-    school_chip()
-  })
-  observeEvent(input$school_del4, {
-    school_list_selected <<- school_list_selected[-4,,drop = FALSE]
-    output$schoolchoice4 <- renderUI({NULL})
-    school_chip()
-  })
-  observeEvent(input$school_del5, {
-    school_list_selected <<- school_list_selected[-5,,drop = FALSE]
-    output$schoolchoice5 <- renderUI({NULL})
-    school_chip()
-  })
   
   #08 Major info ----
   observeEvent(input$major_add, {
@@ -1223,83 +1151,66 @@ server <- function(input, output, session) {
           return()
         } else {
           major_list_selected <<- rbind(major_list_selected, input$major_next)
-          major_chip()
+          major_cards()
         }
       }
     }
-  })    
-  major_chip <- function() {
-    if(NROW(major_list_selected) > 0){
-      temp_major1 <- major_list_selected[1]
-      temp_major1 <- strtrim(temp_major1, 20)
-      output$majorchoice1 <- renderUI({
-        div(class = "chip",id = "mc1",splitLayout(cellWidths = c("80%","20%"),p(temp_major1),
-                                                  actionButton(inputId = "major_del1", label = "x")),  style = "border-bottom:none;")
+  })
+  
+  major_cards <- function() {
+    major_temp <- major_filter %>% filter(CIPNAME %in% major_list_selected)
+    if(NROW(major_temp) > 0){
+      output$majorchoice <- renderUI({
+        args <- lapply(1:NROW(major_temp), function(.x) majorcard2(.x,
+                                                                     name = major_temp$CIPCODE[.x],
+                                                                     major = major_temp$CIPNAME[.x]))
+        args$cellArgs <- list(
+          style = "
+          width: 210px;
+          height: 50px;
+		      padding: 0px;
+		      padding-left: 15px;
+		      top: 50%;
+		      border-color: #37b749;
+          background-color:#37b749;
+          margin: 10px;
+          font-size: 1em;
+          line-height: 50px;
+		      border-radius: 25px;
+		      border-bottom:none !important;
+		      color: white;		  
+          "
+        )        
+        do.call(shiny::flowLayout, args)        
       })
-    } else {output$majorchoice1 <- renderUI({NULL }) }
-    if(NROW(major_list_selected) > 1){
-      temp_major2 <- major_list_selected[2]
-      temp_major2 <- strtrim(temp_major2, 20)
-      output$majorchoice2 <- renderUI({
-        div(class = "chip",id = "mc2",splitLayout(cellWidths = c("80%","20%"),p(temp_major2),
-                                                  actionButton(inputId = "major_del2", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$majorchoice2 <- renderUI({NULL}) }
-    if(NROW(major_list_selected) > 2){
-      temp_major3 <- major_list_selected[3]
-      temp_major3 <- strtrim(temp_major3, 20)
-      output$majorchoice3 <- renderUI({
-        div(class = "chip",id = "mc3",splitLayout(cellWidths = c("80%","20%"),p(temp_major3),
-                                                  actionButton(inputId = "major_del3", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$majorchoice3 <- renderUI({NULL}) }
-    if(NROW(major_list_selected) > 3){
-      temp_major4 <- major_list_selected[4]
-      temp_major4 <- strtrim(temp_major4, 20)
-      output$majorchoice4 <- renderUI({
-        div(class = "chip",id = "mc4",splitLayout(cellWidths = c("80%","20%"),p(temp_major4),
-                                                  actionButton(inputId = "major_del4", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$majorchoice4 <- renderUI({NULL}) }
-    if(NROW(major_list_selected) > 4){
-      temp_major5 <- major_list_selected[5]
-      temp_major5 <- strtrim(temp_major5, 20)
-      output$majorchoice5 <- renderUI({
-        div(class = "chip",id = "mc5",splitLayout(cellWidths = c("80%","20%"),p(temp_major5),
-                                                  actionButton(inputId = "major_del5", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$majorchoice5 <- renderUI({NULL}) }
-  }
-  observeEvent(input$major_del1, {
-    major_list_selected <<- major_list_selected[-1,,drop = FALSE]
-    if(NROW(major_list_selected) > 0){
-      output$majorchoice1 <- renderUI({NULL})
-      major_chip()
     } else {
-      output$majorchoice1 <- renderUI({NULL})
-      major_list_selected <<- vector(mode = "list")
+      output$majorchoice <- renderUI({NULL})
+      majorobsList <<- list()
     }
-  })
-  observeEvent(input$major_del2, {
-    major_list_selected <<- major_list_selected[-2,,drop = FALSE]
-    output$majorchoice2 <- renderUI({NULL})
-    major_chip()
-  })
-  observeEvent(input$major_del3, {
-    major_list_selected <<- major_list_selected[-3,,drop = FALSE]
-    output$majorchoice3 <- renderUI({NULL})
-    major_chip()
-  })
-  observeEvent(input$major_del4, {
-    major_list_selected <<- major_list_selected[-4,,drop = FALSE]
-    output$majorchoice4 <- renderUI({NULL})
-    major_chip()
-  })
-  observeEvent(input$major_del5, {
-    major_list_selected <<- major_list_selected[-5,,drop = FALSE]
-    output$majorchoice5 <- renderUI({NULL})
-    major_chip()
-  })
+  }	  
+  majorcard2 <- function(x,name,major) {
+    major_observer(name,major)  
+    trim_major <- strtrim(major, 22)
+    div(class = "newchip",
+        div(style = "display:inline-block;vertical-align:top;width:210px;",
+            splitLayout(cellWidths = c("80%","20%"),
+                        p(trim_major),                        
+                        actionButton(inputId = paste0("majordel",name),label = "x",
+                                     style = "margin:0px;color:white;padding:0px;font-size: 1em; border-color: #37b749; background-color: #37b749;top: 50%;")))        
+    )
+  }
+  major_observer <- function(name,major){
+    btName <- paste0("majordel",name)
+    if(length(majorobsList[[btName]]) == 0){
+      majorobsList[[btName]] <<- observeEvent(input[[btName]], {
+        major_list_selected <<- major_list_selected[major_list_selected != major]
+        majorobsList <<- list()
+        major_cards()
+      }, ignoreInit = TRUE, once = TRUE)
+    }
+  }
+  
+
   # 09 Occupation info ----
   observeEvent(input$occupation_add, {
     if(input$occupation_next != "NA"){
@@ -1308,83 +1219,66 @@ server <- function(input, output, session) {
           return()
         } else {
           occupation_list_selected <<- rbind(occupation_list_selected, input$occupation_next)
-          occupation_chip()
+          occupation_cards()
         }
       }
     }
   })
-  occupation_chip <- function() {
-    if(NROW(occupation_list_selected) > 0){
-      temp_occupation1 <- occupation_list_selected[1]
-      temp_occupation1 <- strtrim(temp_occupation1, 20)
-      output$occupationchoice1 <- renderUI({
-        div(class = "chip",id = "oc1",splitLayout(cellWidths = c("80%","20%"),p(temp_occupation1),
-                                                  actionButton(inputId = "occupation_del1", label = "x")),  style = "border-bottom:none;")
+  
+  occupation_cards <- function() {
+    occupation_temp <- occupation_filter %>% filter(OCCNAME %in% occupation_list_selected)
+    if(NROW(occupation_temp) > 0){
+      output$occupationchoice <- renderUI({
+        args <- lapply(1:NROW(occupation_temp), function(.x) occupationcard2(.x,
+                                                                   name = occupation_temp$OCCCODE[.x],
+                                                                   occupation = occupation_temp$OCCNAME[.x]))
+        args$cellArgs <- list(
+          style = "
+          width: 210px;
+          height: 50px;
+		      padding: 0px;
+		      padding-left: 15px;
+		      top: 50%;
+		      border-color: #477ddd;
+          background-color:#477ddd;
+          margin: 10px;
+          font-size: 1em;
+          line-height: 50px;
+		      border-radius: 25px;
+		      border-bottom:none !important;
+		      color: white;		  
+          "
+        )        
+        do.call(shiny::flowLayout, args)        
       })
-    } else {output$occupationchoice1 <- renderUI({NULL }) }
-    if(NROW(occupation_list_selected) > 1){
-      temp_occupation2 <- occupation_list_selected[2]
-      temp_occupation2 <- strtrim(temp_occupation2, 20)
-      output$occupationchoice2 <- renderUI({
-        div(class = "chip",id = "oc2",splitLayout(cellWidths = c("80%","20%"),p(temp_occupation2),
-                                                  actionButton(inputId = "occupation_del2", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$occupationchoice2 <- renderUI({NULL}) }
-    if(NROW(occupation_list_selected) > 2){
-      temp_occupation3 <- occupation_list_selected[3]
-      temp_occupation3 <- strtrim(temp_occupation3, 20)
-      output$occupationchoice3 <- renderUI({
-        div(class = "chip",id = "oc3",splitLayout(cellWidths = c("80%","20%"),p(temp_occupation3),
-                                                  actionButton(inputId = "occupation_del3", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$occupationchoice3 <- renderUI({NULL}) }
-    if(NROW(occupation_list_selected) > 3){
-      temp_occupation4 <- occupation_list_selected[4]
-      temp_occupation4 <- strtrim(temp_occupation4, 20)
-      output$occupationchoice4 <- renderUI({
-        div(class = "chip",id = "oc4",splitLayout(cellWidths = c("80%","20%"),p(temp_occupation4),
-                                                  actionButton(inputId = "occupation_del4", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$occupationchoice4 <- renderUI({NULL}) }
-    if(NROW(occupation_list_selected) > 4){
-      temp_occupation5 <- occupation_list_selected[5]
-      temp_occupation5 <- strtrim(temp_occupation5, 20)
-      output$occupationchoice5 <- renderUI({
-        div(class = "chip",id = "oc5",splitLayout(cellWidths = c("80%","20%"),p(temp_occupation5),
-                                                  actionButton(inputId = "occupation_del5", label = "x")), style = "border-bottom:none;")
-      })
-    } else {output$occupationchoice5 <- renderUI({NULL}) }
-  }
-  observeEvent(input$occupation_del1, {
-    occupation_list_selected <<- occupation_list_selected[-1,,drop = FALSE]
-    if(NROW(occupation_list_selected) > 0){
-      output$occupationchoice1 <- renderUI({NULL})
-      occupation_chip()
     } else {
-      output$occupationchoice1 <- renderUI({NULL})
-      occupation_list_selected <<- c(character())
+      output$occupationchoice <- renderUI({NULL})
+      occupationobsList <<- list()
     }
-  })
-  observeEvent(input$occupation_del2, {
-    occupation_list_selected <<- occupation_list_selected[-2,,drop = FALSE]
-    output$occupationchoice2 <- renderUI({NULL})
-    occupation_chip()
-  })
-  observeEvent(input$occupation_del3, {
-    occupation_list_selected <<- occupation_list_selected[-3,,drop = FALSE]
-    output$occupationchoice3 <- renderUI({NULL})
-    occupation_chip()
-  })
-  observeEvent(input$occupation_del4, {
-    occupation_list_selected <<- occupation_list_selected[-4,,drop = FALSE]
-    output$occupationchoice4 <- renderUI({NULL})
-    occupation_chip()
-  })
-  observeEvent(input$occupation_del5, {
-    occupation_list_selected <<- occupation_list_selected[-5,,drop = FALSE]
-    output$occupationchoice5 <- renderUI({NULL})
-    occupation_chip()
-  })
+  }	  
+  occupationcard2 <- function(x,name,occupation) {
+    occupation_observer(name,occupation)  
+    trim_occupation <- strtrim(occupation, 22)
+    div(class = "newchip",
+        div(style = "display:inline-block;vertical-align:top;width:210px;",
+            splitLayout(cellWidths = c("80%","20%"),
+                        p(trim_occupation),                        
+                        actionButton(inputId = paste0("occupationdel",name),label = "x",
+                                     style = "margin:0px;color:white;padding:0px;font-size: 1em; border-color: #477ddd; background-color: #477ddd;top: 50%;")))        
+    )
+  }
+  occupation_observer <- function(name,occupation){
+    btName <- paste0("occupationdel",name)
+    if(length(occupationobsList[[btName]]) == 0){
+      occupationobsList[[btName]] <<- observeEvent(input[[btName]], {
+        occupation_list_selected <<- occupation_list_selected[occupation_list_selected != occupation]
+        occupationobsList <<- list()
+        occupation_cards()
+      }, ignoreInit = TRUE, once = TRUE)
+    }
+  }
+  
+
   school_unavailable <- function(){
     if(is_empty(major_list_selected) & is_empty(degree_list_selected) & is_empty(occupation_list_selected)){
       return()
@@ -1502,19 +1396,13 @@ server <- function(input, output, session) {
     
   }
   add_scenario <- function(){
-    user_scen_temp <- user_scenarios %>% distinct(scenario, .keep_all = TRUE)
-#    user_scen_temp <- user_scenarios %>% filter(user %in% pro_user) %>% distinct(scenario, .keep_all = TRUE)
-    if(NROW(user_scen_temp) == 0){
-      scen_temp <- "Scenario 1"
-    } else {
-      temp_val <- user_scenarios %>% select(scenario) %>% distinct(scenario, .keep_all = FALSE)
-      temp_val <- as.vector(temp_val$scenario)
-      temp_val <- str_remove_all(temp_val, "Scenario ")
-      temp_val <- max(as.numeric(temp_val))
-#      scen_temp2 <- user_scen_temp %>% distinct(user_scenarios$scenario, .keep_all = TRUE)
-#      scen_temp2 <- scen_temp2[grep("Scenario", scen_temp2$scenario),]
-      scen_temp <- paste0("Scenario ",temp_val + 1)
+#    update_scenario()
+    if(edit_scenario == 0){
+      scen_temp <- new_scenario_name
+    } else if(edit_scenario == 1) {
+      scen_temp <- choosen_scenario
     }
+    edit_scenario <<- 0
     if(!is_empty(school_list_selected)){
       for(i in 1:NROW(school_list_selected)){
         school_temp <- filter(school_filter, INSTNM %in% school_list_selected) %>% select(UNITID)
@@ -1547,21 +1435,103 @@ server <- function(input, output, session) {
 
   }
 build_radio <- function(){  
-    scen_temp2 <- user_scenarios %>% filter(user %in% pro_user) %>% distinct(user_scenarios$scenario, .keep_all = TRUE)
+    scen_temp2 <- user_scenarios %>%  distinct(user_scenarios$scenario, .keep_all = TRUE)
     scen_temp2 <- scen_temp2[grep("Scenario", scen_temp2$scenario),]
 #    write.csv(user_scen01, "userdata.csv")
+    if(!is_empty(scen_temp2$scenario)){
     output$scenario_available <- renderUI({
+      div(
       div(id = "scenario_radio",
-          awesomeRadio(inputId = "scen_radio", label = "", choices = scen_temp2$scenario, selected = scen_temp2$scenario[NROW(scen_temp2$scenario)]) )
+          awesomeRadio(inputId = "scen_radio", label = "", choices = scen_temp2$scenario,
+                       selected = scen_temp2$scenario[NROW(scen_temp2$scenario)])), 
+          div(id = "scen_buttons",
+              splitLayout(cellWidths = c("50%","50%"), align = "center",
+              actionButton(inputId = "scen_edit", label = "Edit"),
+              actionButton(inputId = "scen_del", label = "Delete")) ))
     })
+    } else {
+      output$scenario_available <- renderUI({
+        div(id = "scenario_radio",
+            awesomeRadio(inputId = "scen_radio", label = "", choices = scen_temp2$scenario,
+                         selected = scen_temp2$scenario[NROW(scen_temp2$scenario)]))
+      })
+    }
     choosen_scenario <<- "Scenario 1"
+    
   }
   observeEvent(input$scen_radio, {
     choosen_scenario <<- input$scen_radio
     create_scenario_table()
   })
+  
+  observeEvent(input$scen_edit, {
+    edit_scenario <<- 1
+    school_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "school") %>% select(id)
+    school_list_selected <<- as.vector(school_list_selected2$id)
+    if(is_empty(school_list_selected)) {
+      school_list_selected <<- vector(mode = "list")
+    }
+    major_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "major") %>% select(id)
+    major_list_selected <<- as.vector(major_list_selected2$id)
+    if(is_empty(major_list_selected)) {
+      major_list_selected <<- vector(mode = "list")
+    }
+    occupation_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "occupation") %>% select(id)
+    occupation_list_selected <<- as.vector(occupation_list_selected2$id)
+    if(is_empty(occupation_list_selected)) {
+      occupation_list_selected <<- vector(mode = "list")
+    }
+    degree_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "degree") %>% select(id)
+    degree_list_selected <<- as.vector(degree_list_selected2$id)
+    if(is_empty(degree_list_selected)) {
+      degree_list_selected <<- vector(mode = "list")
+    }
+    user_scenarios <<- user_scenarios %>% filter(!(scenario == choosen_scenario))
+    
+    school_unavailable()
+    major_unavailable()
+    occupation_unavailable()
+    degree_unavailable()
+    
+    school_cards()
+    major_cards()
+    occupation_cards()
+    
+    build_radio()
+    build_variables$current_page <<- 5
+    
+    temp_choice$school_status <<- 3
+    schoolclick <<- 1
+    temp_choice$major_status <<- 3
+    majorclick <<- 1
+    temp_choice$occupation_status <<- 3
+    occupationclick <<- 1
+    temp_choice$degree_status <<- 3
+    degreeclick <<- 1
+    
+    
+  })
+  
+  observeEvent(input$scen_del, {
+    showModal(modalDialog(
+      title= paste0("Are you sure you want to Delete ", input$scen_radio),
+      footer = tagList(actionButton("confirmDelete", "Delete"),
+                       modalButton("Cancel")
+      )
+    ))
+  })
+  
+  observeEvent(input$confirmDelete, {
+    req(input$scen_del)
+    user_scenarios <<- user_scenarios %>% filter(!(scenario == input$scen_radio))
+    saveRDS(user_scenarios, scenario_file)
+    build_radio()
+    output$scenario_table <- renderDataTable({NULL})
+    removeModal()
+  })
+  
   create_scenario_table <- function(){
-    scen_temp <- filter(user_scenarios, user %in% pro_user, scenario %in% choosen_scenario)
+    scen_temp <- filter(user_scenarios, scenario %in% choosen_scenario)
     sch_temp <- scen_temp %>% filter(category == "school") %>% select(id)
     maj_temp <- scen_temp %>% filter(category == "major") %>% select(id)
     occ_temp <- scen_temp %>% filter(category == "occupation") %>% select(id)
@@ -1580,18 +1550,10 @@ build_radio <- function(){
     if(!is_empty(deg_temp$id)) {
       scenario_temp <- filter(scenario_temp, AWLEVEL %in% deg_temp$id)
     }
-    
-#    scenario_temp <- filter(user_scen01, scenario %in% choosen_scenario) %>% select(ID)
-#    scenario_temp <- left_join(scenario_temp, backbone, by = "ID")
     scenario_temp <- left_join(scenario_temp, school_scenario2, by = "UNITID")
     scenario_temp <- left_join(scenario_temp, major_scenario2, by = "CIPCODE")
     scenario_temp <- left_join(scenario_temp, degree_scenario2, by = "AWLEVEL")
     scenario_temp <- left_join(scenario_temp, occupation_scenario2, by = "OCCCODE")
-#    write.csv(scenario_temp, "total.csv")
- #   scenario_temp$INSTNM <- strtrim(scenario_temp$INSTNM, 22)
- #   scenario_temp$CIPNAME <- strtrim(scenario_temp$CIPNAME, 22)
- #   scenario_temp$OCCNAME <- strtrim(scenario_temp$OCCNAME, 22)
- #   scenario_temp$LEVELName <- strtrim(scenario_temp$LEVELName, 22)
     
     scenario_temp <- scenario_temp %>% rename("School" = "INSTNM", "State" = "STABBR", "Cost" = "TOTALT",
                                               "Major" = "CIPNAME", "Degree" = "LEVELName", 
@@ -1663,6 +1625,12 @@ build_radio <- function(){
     updateTabItems(session, "tabs", selected = "build")
    
   })
+  observeEvent(input$return_current_button, {
+    user_scenarios <<- user_scenarios %>% filter(!(scenario == new_scenario_name))
+    build_radio()
+    build_variables$current_page <<- 1
+    
+  })
   observeEvent(input$dash_schools, {
     updateTabItems(session, "tabs", selected = "school")
   })
@@ -1693,10 +1661,26 @@ build_radio <- function(){
     occupation_list_selected <<- vector(mode = "list")
     major_list_selected <<- vector(mode = "list")
     build_variables$current_page <<- 1
+ # scenario name   
+    update_scenario()
   })
+  
+  update_scenario <- function() {
+    user_scen_temp <- user_scenarios %>% distinct(scenario, .keep_all = TRUE)
+    if(NROW(user_scen_temp) == 0){
+      new_scenario_name <<- "Scenario 1"
+    } else {
+      temp_val <- user_scenarios %>% select(scenario) %>% filter(!(scenario == "Favorite")) %>% distinct(scenario, .keep_all = FALSE)
+      temp_val <- as.vector(temp_val$scenario)
+      temp_val <- str_remove_all(temp_val, "Scenario ")
+      temp_val <- max(as.numeric(temp_val))
+      new_scenario_name <<- paste0("Scenario ",temp_val + 1)
+    }
+  }
   observe({
     if(file.exists(scenario_file)){
       user_scenarios <<- readRDS(scenario_file)
+      update_scenario()
     }
     if(file.exists(favorite_file)){
       user_favorites <<- readRDS(favorite_file)
