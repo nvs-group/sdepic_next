@@ -337,8 +337,8 @@ body <- dashboardBody(
                                         div(class = "header_label", p("Scenario Table")),
                                         dataTableOutput(outputId = "scenario_table")))
                     ),
-                    fluidRow(column(width = 3,
-                                    uiOutput("return_current")),
+                    fluidRow(column(width = 3
+                                   ),
                              column(width = 3,
                                     uiOutput("add_favorite")),
                              column(width = 3,
@@ -606,6 +606,7 @@ server <- function(input, output, session) {
 
   choosen_scenario <- character()
   new_scenario_name <- character()
+  temp_scenario <- character()
   favorite_temp <- character()
   obsList <- list()
   detailList <- list()
@@ -708,7 +709,7 @@ server <- function(input, output, session) {
     shinyjs::show(id = "scenario_text")
     shinyjs::show(id = "scenario_available")
     shinyjs::show(id = "dt_scenario")
-    shinyjs::show(id = "return_current")
+ #   shinyjs::show(id = "return_current")
     shinyjs::show(id = "add_favorite")
     shinyjs::show(id = "build_new")
     shinyjs::show(id = "return_dashboard")
@@ -718,7 +719,7 @@ server <- function(input, output, session) {
     shinyjs::hide(id = "scenario_text")
     shinyjs::hide(id = "scenario_available")
     shinyjs::hide(id = "dt_scenario")
-    shinyjs::hide(id = "return_current")
+#    shinyjs::hide(id = "return_current")
     shinyjs::hide(id = "add_favorite")
     shinyjs::hide(id = "build_new")
     shinyjs::hide(id = "return_dashboard")
@@ -881,11 +882,14 @@ server <- function(input, output, session) {
 
   observe({
     if(build_variables$current_page == 5){
+      showheader()
+      hidescenario()
       output$build_header1 <- renderUI({ p("Building complete.") })
       output$build_header2 <- renderUI({ p("Lets Build Your Scenario!")})
       output$build_header3 <- renderUI({ p("Great job filing out your preferences. If you wish to make changes to any of your preferences in the") })
       output$build_header4 <- renderUI({ p("categories, select the previous button. If you are ready to continue select the build scenario button!")})
       show_choice_page()
+      showline()
       shownext()
       output$next_select <- renderUI({actionButton(inputId = "next_button", label = "Build Scenario") })
     }
@@ -896,6 +900,7 @@ server <- function(input, output, session) {
         school_page()
         showline()
         shownext()
+ #       school_cards()
         output$next_select <- renderUI({actionButton(inputId = "next_button", label = "Next", icon = icon("arrow-right")) })
     }
   })
@@ -937,7 +942,7 @@ server <- function(input, output, session) {
       build_radio()
       
       showscenario()
-      output$return_current <- renderUI({actionButton(inputId = "return_current_button", label = "Return to Scenario")})
+#      output$return_current <- renderUI({actionButton(inputId = "return_current_button", label = "Return to Scenario")})
       output$add_favorite <- renderUI({actionButton(inputId = "add_favorite_button", label = "Add to Favorites") })
       output$build_new <- renderUI({actionButton(inputId = "build_new_button", label = "Build New Scenario...") })
       output$return_dashboard <- renderUI({actionButton(inputId = "return_dashboard_button", label = "Return to Dashboard") })
@@ -1396,13 +1401,14 @@ server <- function(input, output, session) {
     
   }
   add_scenario <- function(){
-#    update_scenario()
-    if(edit_scenario == 0){
+
+    if(edit_scenario < 1){
       scen_temp <- new_scenario_name
-    } else if(edit_scenario == 1) {
-      scen_temp <- choosen_scenario
+    } else  {
+      scen_temp <- temp_scenario
+      
     }
-    edit_scenario <<- 0
+#    edit_scenario <<- 0
     if(!is_empty(school_list_selected)){
       for(i in 1:NROW(school_list_selected)){
         school_temp <- filter(school_filter, INSTNM %in% school_list_selected) %>% select(UNITID)
@@ -1442,7 +1448,7 @@ build_radio <- function(){
     output$scenario_available <- renderUI({
       div(
       div(id = "scenario_radio",
-          awesomeRadio(inputId = "scen_radio", label = "", choices = scen_temp2$scenario,
+          awesomeRadio(inputId = "scen_radio", label = "", choices = sort(scen_temp2$scenario),
                        selected = scen_temp2$scenario[NROW(scen_temp2$scenario)])), 
           div(id = "scen_buttons",
               splitLayout(cellWidths = c("50%","50%"), align = "center",
@@ -1452,7 +1458,7 @@ build_radio <- function(){
     } else {
       output$scenario_available <- renderUI({
         div(id = "scenario_radio",
-            awesomeRadio(inputId = "scen_radio", label = "", choices = scen_temp2$scenario,
+            awesomeRadio(inputId = "scen_radio", label = "", choices = sort(scen_temp2$scenario),
                          selected = scen_temp2$scenario[NROW(scen_temp2$scenario)]))
       })
     }
@@ -1466,36 +1472,53 @@ build_radio <- function(){
   
   observeEvent(input$scen_edit, {
     edit_scenario <<- 1
-    school_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "school") %>% select(id)
-    school_list_selected <<- as.vector(school_list_selected2$id)
-    if(is_empty(school_list_selected)) {
+    temp_scenario <<- choosen_scenario
+    school_temp <- user_scenarios %>% filter(scenario == temp_scenario, source == "build", category == "school") %>% select(id)
+    school_list_selected2 <- school_filter %>% filter(UNITID %in% school_temp$id) %>% select(INSTNM)
+    if(is_empty(school_list_selected2$INSTNM)) {
       school_list_selected <<- vector(mode = "list")
+    } else {
+      school_list_selected <<- vector(mode = "list")
+      school_list_selected <<- cbind(school_list_selected, school_list_selected2$INSTNM)
     }
-    major_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "major") %>% select(id)
-    major_list_selected <<- as.vector(major_list_selected2$id)
-    if(is_empty(major_list_selected)) {
+    
+    major_temp <- user_scenarios %>% filter(scenario == temp_scenario, source == "build", category == "major") %>% select(id)
+    major_list_selected2 <- major_filter %>% filter(CIPCODE %in% major_temp$id) %>% select(CIPNAME)
+    if(is_empty(major_list_selected2$CIPNAME)) {
       major_list_selected <<- vector(mode = "list")
+    } else {
+      major_list_selected <<- vector(mode = "list")
+      major_list_selected <<- cbind(major_list_selected, major_list_selected2$CIPNAME)
     }
-    occupation_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "occupation") %>% select(id)
-    occupation_list_selected <<- as.vector(occupation_list_selected2$id)
-    if(is_empty(occupation_list_selected)) {
+    
+    occupation_temp <- user_scenarios %>% filter(scenario == temp_scenario, source == "build", category == "occupation") %>% select(id)
+    occupation_list_selected2 <- occupation_filter %>% filter(OCCCODE %in% occupation_temp$id) %>% select(OCCNAME)
+    if(is_empty(occupation_list_selected2$OCCNAME)) {
       occupation_list_selected <<- vector(mode = "list")
+    } else {
+      occupation_list_selected <<- vector(mode = "list")
+      occupation_list_selected <<- cbind(occupation_list_selected, occupation_list_selected2$OCCNAME)
     }
-    degree_list_selected2 <- user_scenarios %>% filter(scenario == choosen_scenario, source == "build", category == "degree") %>% select(id)
-    degree_list_selected <<- as.vector(degree_list_selected2$id)
-    if(is_empty(degree_list_selected)) {
+    
+    degree_temp <- user_scenarios %>% filter(scenario == temp_scenario, source == "build", category == "degree") %>% select(id)
+    degree_list_selected2 <- degree_filter %>% filter(AWLEVEL %in% degree_temp$id) %>% select(LEVELName)
+    if(is_empty(degree_list_selected2$LEVELName)) {
       degree_list_selected <<- vector(mode = "list")
+    } else {
+      degree_list_selected <<- vector(mode = "list")
+      degree_list_selected <<- cbind(degree_list_selected, degree_list_selected2$LEVELName)
     }
-    user_scenarios <<- user_scenarios %>% filter(!(scenario == choosen_scenario))
+    
+    user_scenarios <<- user_scenarios %>% filter(!(scenario == temp_scenario))
+    
+    school_cards()
+    major_cards()
+    occupation_cards()
     
     school_unavailable()
     major_unavailable()
     occupation_unavailable()
     degree_unavailable()
-    
-    school_cards()
-    major_cards()
-    occupation_cards()
     
     build_radio()
     build_variables$current_page <<- 5
@@ -1625,12 +1648,12 @@ build_radio <- function(){
     updateTabItems(session, "tabs", selected = "build")
    
   })
-  observeEvent(input$return_current_button, {
-    user_scenarios <<- user_scenarios %>% filter(!(scenario == new_scenario_name))
-    build_radio()
-    build_variables$current_page <<- 1
+#  observeEvent(input$return_current_button, {
+#    user_scenarios <<- user_scenarios %>% filter(!(scenario == new_scenario_name))
+#    build_radio()
+ #   build_variables$current_page <<- 1
     
-  })
+ # })
   observeEvent(input$dash_schools, {
     updateTabItems(session, "tabs", selected = "school")
   })
@@ -1661,6 +1684,7 @@ build_radio <- function(){
     occupation_list_selected <<- vector(mode = "list")
     major_list_selected <<- vector(mode = "list")
     build_variables$current_page <<- 1
+    edit_scenario <<- 0
  # scenario name   
     update_scenario()
   })
