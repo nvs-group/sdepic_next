@@ -16,10 +16,27 @@ library(sodium)
 library(shinyBS)
 library(extrafont)
 library(shinyLP)
+library(rdrop2)
+library(shinyalert)
+#library(shinythemes)
 
 # 02 Declare Variables ----
 # UI Variables
-
+token <- readRDS("signin.rds")
+drop_auth(rdstoken = "signin.rds")
+#credentials = data.frame(
+#  id = "USER1",
+#  username_id = "Demo",
+#  email = "demo@email.com",
+#  state = "Virginia",
+#  passod   = sapply("password",password_store),
+#  permission  = c("advanced"), 
+#  stringsAsFactors = F
+#)
+#saveRDS(credentials, "cred.rds")
+#drop_upload("cred.rds", path = "responses")
+drop_download("responses/cred.rds", overwrite = TRUE)
+credentials <- readRDS("cred.rds")
 # Server Variables
 backbone <- readRDS("data/Backbone.rds")
 
@@ -75,35 +92,22 @@ major_list3 <- cips %>% filter(CIPCODE %in% unique(major_master$CIPCODE)) %>% se
 major_list3 <- major_list3[order(major_list3),,drop = FALSE]
 
 degree_list3 <- degree_master %>% filter(AWLEVEL %in% unique(major_master$AWLEVEL)) %>% select(LEVELName)
-pro_name <- "Lynn Chapman"
-pro_email <- "myemail@profile.com"
-pro_state <- "Virginia"
-pro_user <- "USER1"
+pro_name <- character()
+pro_email <- character()
+pro_state <- character()
+pro_user <- character()
 # 03 Functions ----
 school_list4 <- tibble("INSTNM" = character())
 school_list4 <- as_tibble(make.unique(as.character(school_list$INSTNM), sep = "_"))
 #write_csv(school_master, "School.csv")
 
 # 04.1 Header ----
-header <- dashboardHeaderPlus()
+header <- dashboardHeaderPlus( uiOutput("logoutbtn"))
 
 # 04.2 Sidebar ----
 sidebar <- dashboardSidebar(
-  
   tags$img(src = 'BlueLogo_Final.png',contentType = "image/png", style = "width: 285px; height: 180px;align:center;"),
-  sidebarMenu(id = "tabs", 
-              menuItem("Profile", tabName = "profile", icon = icon("user")),
-              menuItem("Dashboard", tabName = "dashboard", icon = icon("tachometer-alt"),selected = TRUE),
-              menuItem("Scenarios", tabName = "build", icon = icon("plus")),
-              menuItem("Explore", tabName = "explore", icon = icon("fas fa-compass"),
-                       menuSubItem("Explore Schools", tabName = "school"),
-                       menuSubItem("Explore Occupations", tabName = "occupation"),
-                       menuSubItem("Explore Majors", tabName = "major")),
-              menuItem("Settings", tabName = "settings", icon = icon("cog")),
-              menuItem("Tools", tabName = "tools", icon = icon("wrench",lib = "glyphicon")),
-              menuItem("Help", tabName = "help", icon = icon("question-circle")),
-              searchInput(inputId = "search", label = "", placeholder = "Search EPIC"))
-)
+  uiOutput("sidebarpanel"))
 
 # 04.3 Body ----
 body <- dashboardBody(
@@ -137,7 +141,8 @@ body <- dashboardBody(
         
       });
     ')),
-  
+  useShinyjs(),
+  useShinyalert(),
   tags$head(
     tags$style(HTML("
                       .my_class {
@@ -148,6 +153,31 @@ body <- dashboardBody(
   
   # 04.4 TABS ----
   tabItems(
+    tabItem(tabName = "login",
+            div(id = "loginpage", style = "width: 500px; max-width: 100%; margin: 0 auto; padding: 20px;",
+                wellPanel(
+                  tags$h2("LOG IN", class = "text-center", style = "padding-top: 0;color:#333; font-weight:600;"),
+                  textInput("userName", placeholder="Username", label = tagList(icon("user"), "Username")),
+                  passwordInput("passwd", placeholder="Password", label = tagList(icon("unlock-alt"), "Password")),
+                  br(),
+                  div(
+                    style = "text-align: center;",
+                    actionButton("login", "SIGN IN", style = "color: white; background-color:#3c8dbc;
+                                 padding: 10px 15px; width: 150px; cursor: pointer;
+                                 font-size: 18px; font-weight: 600;"),
+                    br(),
+                    br(),
+                    br()
+                  ),
+                  div(
+                    style = "text-align: center;",
+                    actionButton("add_user", "Create Account", style = "color: white; background-color:#808080;
+                                 padding: 10px 15px; width: 200px; cursor: pointer;
+                                 font-size: 16px; font-weight: 600;"),
+                    br()
+                  )
+                )
+            )),
     tabItem(tabName = "dashboard",
             boxPlus(id = "dashboard_window", width = 12, style ="padding: 0px;margin: 0px;overflow-y: auto;overflow-x:hidden;",
                     fluidRow(column(width = 6,
@@ -159,7 +189,7 @@ body <- dashboardBody(
                                         p(current_date2)))
                     ),
                     fluidRow(column(width = 8,
-                                    div(class = "header_label2",h2(paste0("Welcome ",pro_name,"!")),h4("We are here to help make education planning easier.")),
+                                    div(class = "header_label2",h2(uiOutput("welcome")),h4("We are here to help make education planning easier.")),
                                     div(class = "dash_header",
                                         splitLayout(cellWidths = c("32%", "68%"),
                                                     p("BUILD"), p("EXPLORE"))
@@ -193,10 +223,10 @@ body <- dashboardBody(
                     column(width = 4,
                            div(id = "tutorial", 
                                h3("TUTORIAL"),
-                               h3("Watch this quick tutorial"),
-                               h3("video to get acquainted"),
-                               h3("with the website and all"),
-                               h3("of its functions")))
+                               tags$video(id='videoID', type = 'video/mp4', src='rec21.mp4', controls = 'controls', width = 300, height = 200),
+                               div(align = "left",style = "padding:35px; font-size: 18px;line-height: 120%;",
+                               HTML(paste("Watch this quick tutorial", "video to get acquainted", "with the website and all", "of its functions", sep="<br/>"))
+                    )))
                     ),
                     fluidRow(column(width = 12,
                                     div(class = "dash_header",
@@ -255,14 +285,16 @@ body <- dashboardBody(
                              column(width = 6,
                                     div(id = "schoolinfo2",
                                          uiOutput("schoolchoice")
-  #                                      column(width = 4, uiOutput("schoolchoice1"),uiOutput("schoolchoice4")),
-  #                                      column(width = 4, uiOutput("schoolchoice2"), uiOutput("schoolchoice5")),
-  #                                      column(width = 4, uiOutput("schoolchoice3"))
                                     ))),
                     fluidRow(column(width = 1),
                              column(width = 6,
                                     div(id = "schoolinfo3",
-                                        checkboxInput(inputId = "school_checkbox", label = "I am not sure where I want to attend...",value = FALSE)))),
+                                        splitLayout(cellWidths = c("8%", "52%", "8%", "32%"),
+                                        actionButton(inputId = "school_more", label = "", icon = icon("plus")),
+                                        tags$h4("Show more search options"),
+                                        actionButton(inputId = "school_hint", label ="", icon = icon("far fa-lightbulb")),
+                                        tags$h4("Hint")
+                                        )))),
                     
                     fluidRow(column(width = 1),
                              column(width = 6,
@@ -281,14 +313,16 @@ body <- dashboardBody(
                              column(width = 6,
                                     div(id = "majorinfo2", 
                                         uiOutput("majorchoice")
- #                                       column(width = 4, uiOutput("majorchoice1"),uiOutput("majorchoice4")),
- #                                       column(width = 4, uiOutput("majorchoice2"), uiOutput("majorchoice5")),
- #                                       column(width = 4, uiOutput("majorchoice3"))
                                     ))),
                     fluidRow(column(width = 1),
                              column(width = 6,
                                     div(id = "majorinfo3",
-                                        checkboxInput(inputId = "major_checkbox", label = "I am not sure what I want to study...",value = FALSE)))),
+                                        splitLayout(cellWidths = c("8%", "52%", "8%", "32%"),
+                                                    actionButton(inputId = "major_more", label = "", icon = icon("plus")),
+                                                    tags$h4("Show more search options"),
+                                                    actionButton(inputId = "major_hint", label ="", icon = icon("far fa-lightbulb")),
+                                                    tags$h4("Hint")
+                                                      )))),
                     fluidRow(column(width = 1),
                              column(width = 6,
                                     div(id = "occupationinfo1",
@@ -306,14 +340,16 @@ body <- dashboardBody(
                              column(width = 6,
                                     div(id = "occupationinfo2",
                                         uiOutput("occupationchoice")
-  #                                     column(width = 4, uiOutput("occupationchoice1"),uiOutput("occupationchoice4")),
-  #                                      column(width = 4, uiOutput("occupationchoice2"), uiOutput("occupationchoice5")),
-  #                                      column(width = 4, uiOutput("occupationchoice3"))
                                     ))),
                     fluidRow(column(width = 1),
                              column(width = 6,
                                     div(id = "occupationinfo3",
-                                        checkboxInput(inputId = "occupation_checkbox", label = "I am not sure what I want to do for a career...",value = FALSE)))),
+                                        splitLayout(cellWidths = c("8%", "52%", "8%", "32%"),
+                                                    actionButton(inputId = "occupation_more", label = "", icon = icon("plus")),
+                                                    tags$h4("Show more search options"),
+                                                    actionButton(inputId = "occupation_hint", label ="", icon = icon("far fa-lightbulb")),
+                                                    tags$h4("Hint")
+                                                      )))),
                     
                     fluidRow(column(width = 1),
                              column(width = 10,
@@ -361,160 +397,117 @@ body <- dashboardBody(
                     h1("Explore"))),
     
     tabItem(tabName = "school",
-            boxPlus(id = "school_window", width = 12, style = "padding-top: 90px;margin: 0px;overflow-y: auto;",
+            boxPlus(id = "school_window", width = 12, style = "padding: 0px;margin: 0px;overflow-y: auto;",
                     
-                    fluidPage(
-                      div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:2em",
+                   column(width = 2,style = "padding:0px;margin:0px;",
+                      div(align = 'center', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#e2ac24;color:white;",
                           h2("Explore Schools")),
-                      fluidRow(
-                        column(width = 3,
-                               selectInput(inputId = "es_school", label = "School", choices = c("All" = '',school_list$INSTNM), width = "100%")),
-                        column(width = 3,
-                               selectInput(inputId = "es_state", label = "State", choices = c("All" = '',state_abbr_master$State),
-                                           width = "100%")),
-                        column(width = 3,
-                               sliderInput(inputId = "es_room_board", label = "Room and Board",
-                                           value = max(school_master2$ROOM_BOARD),
-                                           min = min(school_master2$ROOM_BOARD),
-                                           max = max(school_master2$ROOM_BOARD),
-                                           width = "100%"))
-                      ),
-                      fluidRow(
-                        column(width = 3,
-                               sliderInput(inputId = "es_annual_hi", label = "Annual Cost High",
-                                           value = max(school_master2$TotCstOutHi),
-                                           min = min(school_master2$TotCstOutHi),
-                                           max = max(school_master2$TotCstOutHi),
-                                           width = "100%")),
-                        column(width = 3,
-                               sliderInput(inputId = "es_annual_lo", label = "Annual Cost Low",
-                                           value = max(school_master2$TotCstOutLo),
-                                           min = min(school_master2$TotCstOutLo),
-                                           max = max(school_master2$TotCstOutLo),
-                                           width = "100%"))
-                      ),
-                      
-                      fluidRow(
-                        column(
-                          width = 12,
-                          div(align = 'center', style = "font-size: 16px; padding: 0px; margin-top:1em;
-                      margin-left: 0px; margin-right: 0px;overflow-y: auto;", 
-                              boxPlus(
-                                id = "box_es1",
-                                title = "Table",
-                                width = 12,
-                                solidHeader = TRUE,
-                                background = 'light-blue',
-                                collapsible = TRUE,
-                                collapsed = FALSE,
-                                closable = FALSE,
-                                div(style = 'overflow-x: scroll',
-                                    DT::dataTableOutput(
-                                      outputId = "es_table",
-                                      width = "100%",
-                                      height = "auto"
-                                    )))))
+                      div(align = 'left',
+                      style = "background-color:white;padding-left: 5px;margin-left:0px;",
+                        selectInput(inputId = "es_school", label = "School", choices = c("All" = '',school_list$INSTNM), width = "100%"),
+                        selectInput(inputId = "es_state", label = "State", choices = c("All" = '',state_abbr_master$State), width = "100%"),
+                        sliderInput(inputId = "es_room_board", label = "Room and Board",
+                                    value = max(school_master2$ROOM_BOARD),
+                                    min = min(school_master2$ROOM_BOARD),
+                                    max = max(school_master2$ROOM_BOARD),
+                                    width = "90%"),
+                        sliderInput(inputId = "es_annual_hi", label = "Annual Cost High",
+                                    value = max(school_master2$TotCstOutHi),
+                                    min = min(school_master2$TotCstOutHi),
+                                    max = max(school_master2$TotCstOutHi),
+                                    width = "90%"),
+                        sliderInput(inputId = "es_annual_lo", label = "Annual Cost Low",
+                                    value = max(school_master2$TotCstOutLo),
+                                    min = min(school_master2$TotCstOutLo),
+                                    max = max(school_master2$TotCstOutLo),
+                                    width = "90%"),
+                      actionButton(inputId = "school_favorite", label = "Add to Favorites"),
+                      uiOutput(outputId = "school_return")
                       )
-                      
-                    ))
+                      ),
+                      column(width = 10,
+                          div(align = 'center', style = "font-size: 16px; padding: 0px; margin-top:2em;
+                      margin-left: 0px; margin-right: 0px;overflow-y: auto;", 
+                              tabBox(width = 12, id = "es_tab", side = "left",
+                                     tabPanel("Table", div(class = "school_header_label", p("School Table")),
+                                              DT::dataTableOutput(
+                                       outputId = "es_table", width = "100%", height = "auto")),
+                                     tabPanel("Favorites", "Favorites"))
+                              ))
+            )
     ),
     tabItem(tabName = "major",
             boxPlus(id = "major_window", width = 12, style = "padding: 0px;margin: 0px;overflow-y: auto;",
-                    fluidPage(
-                      div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:2em",
-                          h2("Explore Majors")),
-                      fluidRow(
-                        column(width = 3,
+                    column(width = 2, style ="padding:0px;margin:0px;",
+                           div(align = 'center', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#37b749;color:white;",
+                               h2("Explore Majors")),
+                           div(align = 'left',
+                               style = "background-color:white;padding-left: 5px;margin-left:0px;",
                                selectInput(inputId = "em_major", label = "Major", choices = c("All" = '', major_list3$CIPNAME),
-                                           width = "100%")),
-                        column(width = 3,
+                                           width = "100%"),
                                selectInput(inputId = "em_degree", label = "Degree", choices = c("All" = '', degree_list3$LEVELName),
-                                           width = "100%")),
-                        
-                        column(width = 3,
+                                           width = "100%"),
                                selectInput(inputId = "em_school", label = "School Name", choices = c("All" = '', school_list3$INSTNM), 
-                                           width = "100%"))
+                                           width = "100%"),
+                               actionButton(inputId = "major_favorite", label = "Add to Favorites"),
+                               uiOutput(outputId = "major_return")
+                           )
                       ),
-                      
-                      fluidRow(
-                        column(
-                          width = 12,
-                          div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:1em;
-                      margin-left: 0px; margin-right: 0px", 
-                              boxPlus(
-                                id = "box_em1",
-                                title = "Table",
-                                width = 12,
-                                solidHeader = TRUE,
-                                background = 'light-blue',
-                                collapsible = TRUE,
-                                collapsed = FALSE,
-                                closable = FALSE,
-                                div(style = 'overflow-x: scroll',
-                                    DT::dataTableOutput(
-                                      outputId = "em_table",
-                                      width = "100%",
-                                      height = "auto"
-                                    )))))
-                      )
-                      
+                        column(width = 10,
+                          div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:2em;
+                          margin-left: 0px; margin-right: 0px;overflow-y: auto;", 
+                              tabBox(width = 12, id = "em_tab", side = "left",
+                                     tabPanel("Table", div(class = "major_header_label", p("Major Table")),
+                                              DT::dataTableOutput(
+                                                outputId = "em_table",
+                                                width = "100%",
+                                                height = "auto"
+                                              )),
+                                     tabPanel("Favorites", "Favorites"))
+                                    ))
                     )
-                    )),
+            ),
     tabItem(tabName = "occupation",
-            boxPlus(id = "occupation_window", width = 12, style = "padding: 90px;margin: 0px;overflow-y: auto;",
-                    fluidPage(
-                      div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:2em",
-                          h2("Explore Occupations")),
-                      fluidRow(
-                        column(width = 3,
+            boxPlus(id = "occupation_window", width = 12, style = "padding: 0px;margin: 0px;overflow-y: auto;",
+                    column(width = 2, style ="padding:0px;margin:0px;",
+                           div(align = 'center', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#477ddd;color:white;",
+                               h2("Explore Occupations")),
+                           div(align = 'left',
+                               style = "background-color:white;padding-left: 5px;margin-left:0px;",
                                selectInput(inputId = "eo_occupation", label = "Occupation", choices = c("All" = '', occupation_master$OCCNAME),
-                                           width = "100%")),
-                        column(width = 3,
+                                           width = "100%"),
                                selectInput(inputId = "eo_entry_degree", label = "Entry Degree", choices = c("All" = '', occupation_master$Entry_Degree),
-                                           width = "100%")),
-                        column(width = 3,
+                                           width = "100%"),
                                selectInput(inputId = "eo_required_exp", label = "Required Experience", choices = c("All" = '', occupation_master$Experience), 
-                                           width = "100%"))
-                      ),
-                      fluidRow(
-                        column(width = 3,
+                                           width = "100%"),
                                sliderInput(inputId = "eo_starting_salary", label = "Starting Salary",
                                            value = round(min(occupation_master$X17p),0),
                                            min = round(min(occupation_master$X17p),0), 
                                            max = round(max(occupation_master$X17p),0), 
-                                           width = "100%")),
-                        column(width = 3,
+                                           width = "100%"),
                                sliderInput(inputId = "eo_growth_rate", label = "Growth Rate",
                                            value = round(min(occupation_master$EmplyPC),0),
                                            min = round(min(occupation_master$EmplyPC),0),
                                            max = round(max(occupation_master$EmplyPC),0),
-                                           width = "100%"))
+                                           width = "100%"),
+                               actionButton(inputId = "occupation_favorite", label = "Add to Favorites"),
+                               uiOutput(outputId = "occupation_return")
+                               )
                       ),
-                      fluidRow(
-                        column(
-                          width = 12,
-                          div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:1em;
-                      margin-left: 0px; margin-right: 0px", 
-                              boxPlus(
-                                id = "box_eo1",
-                                title = "Table",
-                                width = 12,
-                                solidHeader = TRUE,
-                                background = 'light-blue',
-                                collapsible = TRUE,
-                                collapsed = FALSE,
-                                closable = FALSE,
-                                div(style = 'overflow-x: scroll',
-                                    DT::dataTableOutput(
-                                      outputId = "eo_table",
-                                      width = "100%",
-                                      height = "auto"
-                                    )))))
-                      )
-                      
+                    column(width = 10,
+                           div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:2em;
+                          margin-left: 0px; margin-right: 0px;overflow-y: auto;", 
+                               tabBox(width = 12, id = "eo_tab", side = "left",
+                                      tabPanel("Table", div(class = "occupation_header_label", p("Occupation Table")),
+                                               DT::dataTableOutput(
+                                                 outputId = "eo_table",
+                                                 width = "100%",
+                                                 height = "auto"
+                                               )),
+                                      tabPanel("Favorites", "Favorites"))
+                           ))
                     )
-                    )),
-    
+            ),
     tabItem(tabName = "profile",
             boxPlus(id = "profile_window", width = 12, style = "padding: 0px;margin: 0px;",
                     fluidPage(
@@ -524,10 +517,8 @@ body <- dashboardBody(
                           h2("Profile")),
                       textInput(inputId = "profile_name", label = "Name", value = pro_name),
                       textInput(inputId = "profile_email", label = "Email", value = pro_email),
-                      column(width = 6, style = "padding-left: 0px;",
-                             textInput(inputId = "profile_school", label = "Current School")),
-                      column(width = 6, style = "padding-right: 0px;",
-                             selectInput(inputId = "profile_state", label = "State of Residence", choices = state_abbr$State, selected = pro_state)),
+                      selectInput(inputId = "profile_state", label = "State of Residence", 
+                                  choices = state_abbr$State, selected = pro_state),
                       textInput(inputId = "profile_activity", label = "Activities/Interests"),
                       textAreaInput(inputId = "profile_biography", label = "Biography", rows = 6)
                                )
@@ -548,14 +539,144 @@ body <- dashboardBody(
 # 04.5 UI ----
 ui <- dashboardPagePlus( header, sidebar, body, useShinyjs(), tags$head(tags$meta( name="viewport", content="width=1920")),
                          tags$head(
-                           tags$link(rel = "stylesheet", type = "text/css", href = "style.css")
+                           tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
+                           tags$head(includeScript("returnClick.js"))
                          ))
 
 # 05 SERVER ----
 server <- function(input, output, session) {
+  login <- FALSE
+  USER <- reactiveValues(login = login)
+  
+  observeEvent(input$login,{
+    if (USER$login == FALSE) {
+      Username <- isolate(input$userName)
+      Password <- isolate(input$passwd)
+      if(length(which(credentials$username_id==Username))==1) { 
+        pasmatch  <- credentials["passod"][which(credentials$username_id==Username),]
+        pasverify <- password_verify(pasmatch, Password)
+        if(pasverify) {
+          USER$login <- TRUE
+          current_user <<- credentials %>% filter(passod %in% pasmatch)
+          set_user_var()
+          update_profile()
+          get_files()
+          output$welcome <- renderUI({paste0("Welcome ",pro_name,"!")})
+        } else {
+          shinyalert(title = "Username or Password incorrect", type = "error")
+        }
+      } else {
+        shinyalert(title = "Username or Password incorrect", type = "error")
+      }
+    } 
+  })
+  set_user_var <- function() {
+    pro_name <<- current_user$username_id[1]
+    pro_email <<- current_user$email[1]
+    pro_state <<- current_user$state[1]
+    pro_user <<- current_user$id[1]
+    scenario_file <<- paste0(pro_user,"scenario.rds")
+    favorite_file <<- paste0(pro_user,"favorite.rds")
+  }
+  
+  update_profile <- function() {
+    updateTextInput(session, inputId = "profile_name", label = "Name", value = pro_name)
+    updateTextInput(session, inputId = "profile_email", label = "Email", value = pro_email)
+    updateSelectInput(session, inputId = "profile_state", label = "State of Residence", choices = state_abbr$State, selected = pro_state)
+    
+  }
+  get_files <- function() {
+    filename2 <- paste0("responses/",scenario_file)
+    if(drop_exists(filename2) == TRUE) {
+      drop_download(filename2, overwrite = TRUE)
+      user_scenarios <<- readRDS(scenario_file)
+      update_scenario()
+    } 
+    filename3 <- paste0("responses/",favorite_file)
+    if(drop_exists(filename3) == TRUE) {
+      drop_download(filename3, overwrite = TRUE)
+      user_favorites <<- readRDS(favorite_file)
+      favor_temp <- user_favorites 
+      if(NROW(favor_temp) > 0) {
+        favorite_cards()
+    } 
+    }
+  }
+  onevent("dblclick", "occupation_next", click("occupation_add"))
+  onevent("dblclick", "major_next", click("major_add"))
+  onevent("dblclick", "school_next", click("school_add"))
+
+  
+  output$logoutbtn <- renderUI({
+    req(USER$login)
+    tags$li(a(icon("fa fa-sign-out"), "Logout", 
+              href="javascript:window.location.reload(true)"),
+            class = "dropdown", 
+            style = "background-color: #eee !important; border: 0;
+                    font-weight: bold; margin:5px; padding: 10px;")
+  })
+  output$sidebarpanel <- renderUI({
+    if (USER$login == TRUE ){ 
+      if (credentials[,"permission"][which(credentials$username_id==input$userName)]=="advanced") {
+        
+        sidebarMenu(id = "tabs", 
+                    menuItem("Profile", tabName = "profile", icon = icon("user")),
+                    menuItem("Dashboard", tabName = "dashboard", icon = icon("tachometer-alt"),selected = TRUE),
+                    menuItem("Scenarios", tabName = "build", icon = icon("plus")),
+                    menuItem("Explore", tabName = "explore", icon = icon("fas fa-compass"),
+                             menuSubItem("Explore Schools", tabName = "school"),
+                             menuSubItem("Explore Occupations", tabName = "occupation"),
+                             menuSubItem("Explore Majors", tabName = "major")),
+                    menuItem("Settings", tabName = "settings", icon = icon("cog")),
+                    menuItem("Tools", tabName = "tools", icon = icon("wrench",lib = "glyphicon")),
+                    menuItem("Help", tabName = "help", icon = icon("question-circle")),
+                    searchInput(inputId = "search", label = "", placeholder = "Search EPIC"))
+      }
+    } else {
+      sidebarMenu(id = "log_tabs",
+                  menuItem("Login", tabName = "login")
+      )
+    }
+  })
+  observe({
+    if (USER$login == TRUE ){
+      updateTabItems(session, "tabs", "dashboard") } else {
+        updateTabItems(session, "log_tabs", "login")
+      }
+  })
+  
   observe({
     shinyjs::runjs("document.getElementsByClassName('sidebar-toggle')[0].style.visibility = 'hidden';")
   }) 
+  observeEvent(input$add_user, {
+    ### This is the pop up board for input a new row
+    showModal(modalDialog(title = "Add a new account",
+                          textInput(paste0("Names_add", input$Add_row_head), "Name"),
+                          textInput(paste0("Email_add", input$Add_row_head), "Email"),
+                          selectInput(paste0("State_add", input$Add_row_head), "State of Residence",
+                                      choices = state_abbr$State, selectize = FALSE,size = 4),
+                          textInput(paste0("Password_add", input$Add_row_head), "Password"), 
+                          actionButton("go", "Add item"),
+                          easyClose = TRUE, footer = NULL ))
+    
+  })
+
+  observeEvent(input$go, {
+    new_row=data.frame(
+      id = paste0("USER", NROW(credentials) + 1),
+      username_id = input[[paste0("Names_add", input$Add_row_head)]],
+      email = input[[paste0("Email_add", input$Add_row_head)]],
+      state = input[[paste0("State_add", input$Add_row_head)]],
+      passod = sapply(input[[paste0("Password_add", input$Add_row_head)]],password_store),
+      permission = "advanced",
+      stringsAsFactors = FALSE
+    )
+    credentials <<- rbind(credentials, new_row)
+    saveRDS(credentials, "cred.rds")
+    drop_upload("cred.rds", path = "responses")
+    removeModal()
+  })
+  current_user <- tibble()
   build_variables <- reactiveValues(current_page = 1)
   temp_choice <- reactiveValues(school_status = 1, major_status = 1, occupation_status = 1, degree_status = 1)
 #
@@ -750,17 +871,17 @@ server <- function(input, output, session) {
   show_school_pref <- function() {
     output$build_header2 <- renderUI({ p("School Preferences")})
     output$build_header3 <- renderUI({ p("Search for schools that you are interested in attending. You may add up to") })
-    output$build_header4 <- renderUI({ p("five schools. If you are not sure where you want to attend, check the box.")})
+    output$build_header4 <- renderUI({ p("five schools.")})
   }
   show_major_pref <- function() {
     output$build_header2 <- renderUI({ p("Major Preferences")})
     output$build_header3 <- renderUI({ p("Search for majors that you are interested in studying. You may add up to") })
-    output$build_header4 <- renderUI({ p("five majors. If you are not sure what you want to study, check the box.")})
+    output$build_header4 <- renderUI({ p("five majors.")})
   }
   show_occupation_pref <- function() {
     output$build_header2 <- renderUI({ p("Occupation Preferences")})
     output$build_header3 <- renderUI({ p("Search for careers that you are interested in persuing. You may add up to") })
-    output$build_header4 <- renderUI({ p("five occupations. If you are not sure which career you want, check the box.")})
+    output$build_header4 <- renderUI({ p("five occupations.")})
   }
   show_degree_pref <- function() {
     output$build_header2 <- renderUI({ p("Degree Preferences")})
@@ -821,6 +942,32 @@ server <- function(input, output, session) {
   }
   pagetotal <- function() {
     temp <- schoolclick + majorclick + occupationclick + degreeclick
+  }
+  
+  clear_build <- function() {
+    temp_choice$school_status <<- 1
+    temp_choice$major_status <<- 1
+    temp_choice$occupation_status <<- 1
+    temp_choice$degree_status <<- 1
+    schoolclick <<- 0
+    majorclick <<- 0
+    occupationclick <<- 0
+    degreeclick <<- 0
+    clear_occupationchoices()
+    clear_majorchoices()
+    clear_schoolchoices()
+    updatePickerInput(session, inputId = "school_next", choices = school_list$INSTNM)
+    updatePickerInput(session, inputId = "major_next", choices = major_list$CIPNAME)
+    updatePickerInput(session, inputId = "occupation_next", choices = occupation_list$OCCNAME)
+    updateCheckboxGroupInput(session, inputId = "degree_checkbox", choices = c(degree_list$LEVELName), selected = NULL)
+    school_list_selected <<- vector(mode = "list")
+    degree_list_selected <<- vector(mode = "list")
+    occupation_list_selected <<- vector(mode = "list")
+    major_list_selected <<- vector(mode = "list")
+    build_variables$current_page <<- 1
+    edit_scenario <<- 0
+    # scenario name   
+    update_scenario()
   }
   observe({
     if(input$profile_state != ''){
@@ -933,21 +1080,23 @@ server <- function(input, output, session) {
   })
   observe({
     if(build_variables$current_page == 10){
-
       hideheader()
       hidechoices()
       hideline()
       hidenext()
-#      output$scenario_table <- renderDataTable({NULL})
       build_radio()
-      
       showscenario()
-#      output$return_current <- renderUI({actionButton(inputId = "return_current_button", label = "Return to Scenario")})
       output$add_favorite <- renderUI({actionButton(inputId = "add_favorite_button", label = "Add to Favorites") })
-      output$build_new <- renderUI({actionButton(inputId = "build_new_button", label = "Build New Scenario...") })
+      output$build_new <- renderUI({
+        div(id = "b_new", align = "center",style = "display: inline-block;",
+            splitLayout(cellWidths = c("20%", "80%"),
+        actionButton(inputId = "build_new_button", label = "", icon = icon("plus")),
+        tags$h3("Build New Scenario...")
+        ))
+        })
+      
       output$return_dashboard <- renderUI({actionButton(inputId = "return_dashboard_button", label = "Return to Dashboard") })
       update_fav_num()
-      #        output$favorites <- renderUI({p(paste0("Favorite Options (", number_favorites,")"))})
       output$scenario_text1 <- renderUI({p("Save Options")})
       output$scenario_text2 <- renderUI({
         div(id = "scenario_text3",
@@ -1437,8 +1586,14 @@ server <- function(input, output, session) {
         user_scenarios <<- rbind(user_scenarios, deg_temp)
       }
     }
-    saveRDS(user_scenarios, scenario_file)
-
+    save_scenario()
+  }
+  
+  save_scenario <- function() {
+    if(pro_name != "Demo") {
+      saveRDS(user_scenarios, scenario_file)
+      drop_upload(scenario_file, path = "responses")
+    }
   }
 build_radio <- function(){  
     scen_temp2 <- user_scenarios %>%  distinct(user_scenarios$scenario, .keep_all = TRUE)
@@ -1462,7 +1617,7 @@ build_radio <- function(){
                          selected = scen_temp2$scenario[NROW(scen_temp2$scenario)]))
       })
     }
-    choosen_scenario <<- "Scenario 1"
+#    choosen_scenario <<- "Scenario 1"
     
   }
   observeEvent(input$scen_radio, {
@@ -1531,8 +1686,6 @@ build_radio <- function(){
     occupationclick <<- 1
     temp_choice$degree_status <<- 3
     degreeclick <<- 1
-    
-    
   })
   
   observeEvent(input$scen_del, {
@@ -1547,7 +1700,7 @@ build_radio <- function(){
   observeEvent(input$confirmDelete, {
     req(input$scen_del)
     user_scenarios <<- user_scenarios %>% filter(!(scenario == input$scen_radio))
-    saveRDS(user_scenarios, scenario_file)
+    save_scenario()
     build_radio()
     output$scenario_table <- renderDataTable({NULL})
     removeModal()
@@ -1585,7 +1738,6 @@ build_radio <- function(){
 #    saveRDS(scenario_temp, "scen_temp.rds")
     favorite_temp <<- scenario_temp
     output$scenario_table <- renderDataTable({
-      
       DT::datatable(
         data = scenario_temp,
         escape = FALSE,
@@ -1635,25 +1787,27 @@ build_radio <- function(){
       fav_temp <- tibble("user" = pro_user, "school" = fav_school$UNITID, "major" = fav_major$CIPCODE,
                              "occupation" = fav_occupation$OCCCODE, "degree" = fav_degree$AWLEVEL)
       user_favorites <<- rbind(user_favorites, fav_temp)
-      saveRDS(user_favorites, favorite_file)
+      save_favorite()
       update_fav_num()
       favorite_cards()
     }
   })
+  save_favorite <- function() {
+    if(pro_name != "Demo") {
+    saveRDS(user_favorites, favorite_file)
+    drop_upload(favorite_file, path = "responses")
+    }
+  }
   observeEvent(input$return_dashboard_button, {
     updateTabItems(session, "tabs", selected = "dashboard")
   })
   observeEvent(input$build_new2, {
+    clear_build()
     scenario_source <<- 2
     updateTabItems(session, "tabs", selected = "build")
    
   })
-#  observeEvent(input$return_current_button, {
-#    user_scenarios <<- user_scenarios %>% filter(!(scenario == new_scenario_name))
-#    build_radio()
- #   build_variables$current_page <<- 1
-    
- # })
+
   observeEvent(input$dash_schools, {
     updateTabItems(session, "tabs", selected = "school")
   })
@@ -1664,29 +1818,8 @@ build_radio <- function(){
     updateTabItems(session, "tabs", selected = "occupation")
   })
   observeEvent(input$build_new_button, {
-    temp_choice$school_status <<- 1
-    temp_choice$major_status <<- 1
-    temp_choice$occupation_status <<- 1
-    temp_choice$degree_status <<- 1
-    schoolclick <<- 0
-    majorclick <<- 0
-    occupationclick <<- 0
-    degreeclick <<- 0
-    clear_occupationchoices()
-    clear_majorchoices()
-    clear_schoolchoices()
-    updatePickerInput(session, inputId = "school_next", choices = school_list$INSTNM)
-    updatePickerInput(session, inputId = "major_next", choices = major_list$CIPNAME)
-    updatePickerInput(session, inputId = "occupation_next", choices = occupation_list$OCCNAME)
-    updateCheckboxGroupInput(session, inputId = "degree_checkbox", choices = c(degree_list$LEVELName), selected = NULL)
-    school_list_selected <<- vector(mode = "list")
-    degree_list_selected <<- vector(mode = "list")
-    occupation_list_selected <<- vector(mode = "list")
-    major_list_selected <<- vector(mode = "list")
-    build_variables$current_page <<- 1
-    edit_scenario <<- 0
- # scenario name   
-    update_scenario()
+    clear_build()
+    
   })
   
   update_scenario <- function() {
@@ -1701,19 +1834,7 @@ build_radio <- function(){
       new_scenario_name <<- paste0("Scenario ",temp_val + 1)
     }
   }
-  observe({
-    if(file.exists(scenario_file)){
-      user_scenarios <<- readRDS(scenario_file)
-      update_scenario()
-    }
-    if(file.exists(favorite_file)){
-      user_favorites <<- readRDS(favorite_file)
-      favor_temp <- user_favorites 
-      if(NROW(favor_temp) > 0) {
-        favorite_cards()
-      }
-    }
-  })
+
   favorite_cards <- function() {
     fav_card <- tibble()
     fav_temp <- user_favorites %>% filter(user %in% pro_user)
@@ -1791,7 +1912,7 @@ build_radio <- function(){
         user_scen01 <<- user_scen01 %>% filter(!(ID == name & scenario == "Favorite"))
         obs_temp <- left_join(user_scen01, backbone, by = "ID")
         user_favorites <<- user_favorites %>% filter(school %in% obs_temp$UNITID & major %in% obs_temp$CIPCODE & occupation %in% obs_temp$OCCCODE & degree %in% obs_temp$AWLEVEL)
-        saveRDS(user_favorites, favorite_file)
+        save_favorite()
         update_fav_num()
         obsList <<- list()
         favorite_cards()
@@ -1933,17 +2054,17 @@ build_radio <- function(){
                         choices = isolate(c(All = '', sort(es_state_list))), selected = '')
     }
     es_school_temp <- es_school_temp %>% mutate(GRADR150 = BAGR150 + L4GR150)   
-    es_school_temp <- es_school_temp %>% select("INSTNM", "STABBR", "WEBADDR", "APPLCN", "ADMSSN", "ENRLT","ROOM_BOARD",
+    es_school_temp <- es_school_temp %>% select("INSTNM", "STABBR", "CITY", "WEBADDR", "APPLCN", "ADMSSN", "ENRLT","ROOM_BOARD",
                                               "GRADR150", "TotCstInHi", "TotCstOutHi", "TotCstInLo", "TotCstOutLo")
     
     es_temp1 <- es_school_temp$TotCstInLo == 0
     es_school_temp <- cbind(es_school_temp, es_temp1)
 
     #Rename table column headers     
-    es_school_temp <- es_school_temp %>% rename("School<br>Name" = "INSTNM", "State" = "STABBR",
-                                                "Web<br>Address" = "WEBADDR", "Applications" = "APPLCN",
-                                                "Admitted" = "ADMSSN", "Enrolled" = "ENRLT",
-                                                "Room and<br>Board" = "ROOM_BOARD", "Graduation<br>Rate(150%)" = "GRADR150",
+    es_school_temp <- es_school_temp %>% rename("School<br>Name" = "INSTNM", "State" = "STABBR", "City" = "CITY",
+                                                "Web<br>Address" = "WEBADDR", "Apps" = "APPLCN",
+                                                "Admit" = "ADMSSN", "Enroll" = "ENRLT",
+                                                "Room and<br>Board" = "ROOM_BOARD", "Grad<br>Rate<br>150%" = "GRADR150",
                                                 "In State<br>Cost w/IG" = "TotCstInLo",
                                                 "Out of State<br>Cost w/IG" = "TotCstOutLo", "In State<br>Cost" = "TotCstInHi",
                                                 "Out of State<br>Cost" = "TotCstOutHi"
@@ -1956,17 +2077,23 @@ build_radio <- function(){
         data = es_table_var(),
         escape = FALSE,
         rownames = FALSE,
-        class="compact cell-border",
+        class="cell-border stripe",
         options = list(
-          order = list(list(12, 'asc'), list(8, 'asc')),
+          headerCallback = DT::JS(
+            "function(thead) {",
+            "  $(thead).css('font-size', '15px');",
+            "}"),
+          dom = 'tip',
+          order = list(list(13, 'asc'), list(9, 'asc')),
           saveState = TRUE,
           filter = FALSE,
  #         autoWidth = TRUE,
-                      columnDefs = (list(list(visible=FALSE, targets=c(12)),
-                                         list(width = '300px', targets =c(0,2)),
+                      columnDefs = (list(list(visible=FALSE, targets=c(13)),
+                                         list(width = '270px', targets =c(0,3)),
+                                         list(width = '185px', targets = c(2)),
                                          list(width = '25px', targets =c(1)),
-                                         list(width = '50px', targets = c(3,4,5,6,7,8,9,10,11)))),
-          lengthMenu = c(10, 15, 25)
+                                         list(width = '63px', targets = c(4,5,6,7,8,9,10,11,12)))),
+          lengthMenu = 10
         ),
         selection = list(mode = 'single')
       ) %>%
@@ -1974,9 +2101,11 @@ build_radio <- function(){
           0,
           target = 'row',
           color = 'black',
-          backgroundColor = 'grey',
           fontWeight = 'normal',
-          lineHeight = '100%'
+          fontSize = '14px',
+          lineHeight = '100%',
+          margin = '0px',
+          padding = '2px'
         )
     })
   })
@@ -2036,8 +2165,13 @@ build_radio <- function(){
         data = eo_table_var(),
         escape = FALSE,
         rownames = FALSE,
-        class="compact cell-border",
+        class="cell-border stripe",
         options = list(
+          headerCallback = DT::JS(
+            "function(thead) {",
+            "  $(thead).css('font-size', '15px');",
+            "}"),
+          dom = 'tip',
           order = list(list(7, 'desc')),
           saveState = TRUE,
           filter = FALSE,
@@ -2045,7 +2179,7 @@ build_radio <- function(){
           #            columnDefs = (list(list(width = '300px', targets =c(11,13,14)),
           #                               list(width = '25px', targets =c(12)),
           #                               list(width = '110px', targets = c(15,16,17,18)))),
-          lengthMenu = c(10, 15, 25)
+          lengthMenu = c(10)
         ),
         selection = list(mode = 'single')
       ) %>%
@@ -2053,8 +2187,8 @@ build_radio <- function(){
           0,
           target = 'row',
           color = 'black',
-          backgroundColor = 'grey',
           fontWeight = 'normal',
+          fontSize = '15px',
           lineHeight = '100%'
         )
     })
@@ -2110,8 +2244,13 @@ build_radio <- function(){
         data = em_table_var(),
         escape = FALSE,
         rownames = FALSE,
-        class="compact cell-border",
+        class="cell-border stripe",
         options = list(
+          headerCallback = DT::JS(
+            "function(thead) {",
+            "  $(thead).css('font-size', '15px');",
+            "}"),
+          dom = 'tip',
           order = list(list(3, 'desc')),
           saveState = TRUE,
           filter = FALSE,
@@ -2120,7 +2259,7 @@ build_radio <- function(){
                                          list(width = '330px', targets =c(1)),
                                          list(width = '330px', targets =c(2)),
                                          list(width = '80px', targets =c(3)))),
-          lengthMenu = c(10,15,25)
+          lengthMenu = c(10)
         ),
         selection = list(mode = 'single')
       ) %>%
@@ -2128,8 +2267,8 @@ build_radio <- function(){
           0,
           target = 'row',
           color = 'black',
-          backgroundColor = 'grey',
           fontWeight = 'normal',
+          fontSize = '15px',
           lineHeight = '100%'
         )
     })
@@ -2137,13 +2276,57 @@ build_radio <- function(){
   observeEvent(input$tabs, {
     req(input$tabs == "build")
     if(scenario_source == 2){
-      build_variables$current_page <<-1
+      build_variables$current_page <<- 1
+      scenario_source <<- 1
+    } else if(scenario_source == 3){
+      build_variables$current_page <<- 6
+      scenario_source <<- 1
+    } else if(scenario_source == 4){
+      build_variables$current_page <<- 7
+      scenario_source <<- 1
+    } else if(scenario_source == 5){
+      build_variables$current_page <<- 8
       scenario_source <<- 1
     } else {
     build_variables$current_page <<- 10
     }
   })
-  
+  observeEvent(input$school_more, {
+    scenerio_source <<- 3
+    updateTabItems(session, "tabs", "school")
+    output$school_return <- renderUI({
+      actionButton(inputId = "s_return", label = "Return to School")
+    })
+  })
+  observeEvent(input$s_return, {
+    scenario_source <<- 3
+    updateTabItems(session, "tabs", selected = "build")
+    output$school_return <- renderUI({NULL})
+  })
+  observeEvent(input$major_more, {
+    scenerio_source <<- 4
+    updateTabItems(session, "tabs", "major")
+    output$major_return <- renderUI({
+      actionButton(inputId = "m_return", label = "Return to Major")
+    })
+  })
+  observeEvent(input$m_return, {
+    scenario_source <<- 4
+    updateTabItems(session, "tabs", selected = "build")
+    output$major_return <- renderUI({NULL})
+  })
+  observeEvent(input$occupation_more, {
+    scenerio_source <<- 5
+    updateTabItems(session, "tabs", "occupation")
+    output$occupation_return <- renderUI({
+      actionButton(inputId = "o_return", label = "Return to Occupation")
+    })
+  })
+  observeEvent(input$o_return, {
+    scenario_source <<- 5
+    updateTabItems(session, "tabs", selected = "build")
+    output$occupation_return <- renderUI({NULL})
+  })
 }
 
 shinyApp(ui, server) 
