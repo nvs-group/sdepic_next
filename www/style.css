@@ -231,22 +231,23 @@
     border-radius: 20px;    
 }
 #build_new_button {
-    width: 325px !important;
-    height: 50px !important;
-    background-color: #4fa0f7;
-    color: white;
-    font-size: 1.375em;
-    margin-top: 1em !important;
-    border-radius: 20px;    
+    font-size: 24px;
+    background-color: white;
+    color: #4fa0f7;
+    border-width: 3px;
+    border-color:#4fa0f7;
+    border-radius: 50%;    
 }
 #return_dashboard_button {
     width: 325px !important;
     height: 50px !important;
-    background-color: #4fa0f7;
-    color: white;
+    background-color: white;
+    color: #4fa0f7;
     font-size: 1.375em;
     margin-top: 1em !important;
-    border-radius: 20px;    
+    border-radius: 20px;
+    margin-bottom: 1em;
+    border-color:#4fa0f7;
 }
 #previous_button {
     width: 225px !important;
@@ -272,8 +273,30 @@
     height:150px;
     padding-left:64px;
 }
-#schoolinfo3 {    
+#schoolinfo3 , #majorinfo3, #occupationinfo3{
+    display: inline-block;
+    color: #a2b6cb;
+    width: 600px;
     padding-left:64px;
+}
+#school_more, #major_more, #occupation_more {
+    border-radius:50%;
+    background-color: white;
+    color:#05416d;
+    font-size: 18px;
+}
+#b_new {
+    color:#4fa0f7;
+    width: 300px;
+    line-height: 64px;
+    height: 64px;
+    margin-top: 1em;
+}
+#school_hint, #major_hint, #occupation_hint {
+    border-radius:50%;
+    background-color: white;
+    color:#e2ac24;
+    font-size: 18px;
 }
 #majorinfo1 {
     margin-top:3em;
@@ -289,9 +312,7 @@
     height:150px;
     padding-left:64px;
 }
-#majorinfo3 {
-    padding-left:64px;
-}
+
 #occupationinfo1 {
     margin-top: 3em;
     height:90px;
@@ -306,9 +327,7 @@
     height:150px;
     padding-left:64px;
 }
-#occupationinfo3 {
-    padding-left:64px;
-}
+
 #degreeinfo1 {
     height: 260px;
     margin-top: 3em;
@@ -331,7 +350,7 @@ input[type=checkbox], input[type=radio] {
     padding-right:15px;
 }
 span {
-    margin-left: 15px;
+    margin-left: 5px;
 }
 .chip {
     display: inline-block;
@@ -350,53 +369,6 @@ span {
     background-color:white;
 }
 
-#school_del1:hover {
-    color:#000;
-}
-#school_del2:hover {
-    color:#000;
-}
-#school_del3:hover {
-    color:#000;
-}
-#school_del4:hover {
-    color:#000;
-}
-#school_del5:hover {
-    color:#000;
-}
-
-#major_del1:hover {
-    color:#000;
-}
-#major_del2:hover {
-    color:#000;
-}
-#major_del3:hover {
-    color:#000;
-}
-#major_del4:hover {
-    color:#000;
-}
-#major_del5:hover {
-    color:#000;
-}
-
-#occupation_del1:hover {
-    color:#000;
-}
-#occupation_del2:hover {
-    color:#000;
-}
-#occupation_del3:hover {
-    color:#000;
-}
-#occupation_del4:hover {
-    color:#000;
-}
-#occupation_del5:hover {
-    color:#000;
-}
 #scenario_radio {
     height: 175px;
     overflow-y:auto;
@@ -409,6 +381,39 @@ span {
     margin-right: 30px !important;
     padding-right: 30px;
     margin-bottom: 10px;
+}
+.school_header_label {
+    font-family: "Arial";
+    padding-left:20px;
+    padding-top:3px;
+    padding-bottom:0px;
+    text-align:left;
+    background-color:#e2ac24;
+    color:white;
+    font-size:1.875em;
+    margin-top:10px;
+}
+.major_header_label {
+    font-family: "Arial";
+    padding-left:20px;
+    padding-top:3px;
+    padding-bottom:0px;
+    text-align:left;
+    background-color:#37b749;
+    color:white;
+    font-size:1.875em;
+    margin-top:10px;
+}
+.occupation_header_label {
+    font-family: "Arial";
+    padding-left:20px;
+    padding-top:3px;
+    padding-bottom:0px;
+    text-align:left;
+    background-color:#477ddd;
+    color:white;
+    font-size:1.875em;
+    margin-top:10px;
 }
 .header_label {
     font-family: "Arial";
@@ -503,6 +508,14 @@ thead,th {
 }
 #es_table .table th {
     text-align: left;
+    background-color:#e2ac24;
+    padding: 0px;
+}
+.nav-tabs-custom>.tab-content {
+    background: #fff;
+    padding: 0px;
+    border-bottom-right-radius: 3px;
+    border-bottom-left-radius: 3px;
 }
 #scen_buttons {
     margin-top: 20px;
@@ -516,4 +529,8 @@ thead,th {
     border-radius:20px;
     background-color: red;
     color:white;
+}
+table.dataTable thead th, table.dataTable thead td {
+    padding: 10px 18px 10px 0px !important;
+    border-bottom: 1px solid #111;
 }
