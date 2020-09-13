@@ -1,4 +1,4 @@
-# Self Directed EPIC 8/19/2020 ----
+# Self Directed EPIC 9/12/2020 ----
 # 01 Load Libraries ----
 library(shiny)
 library(shinydashboard)
@@ -24,19 +24,11 @@ library(shinyalert)
 # UI Variables
 token <- readRDS("signin.rds")
 drop_auth(rdstoken = "signin.rds")
-#credentials = data.frame(
-#  id = "USER1",
-#  username_id = "Demo",
-#  email = "demo@email.com",
-#  state = "Virginia",
-#  passod   = sapply("password",password_store),
-#  permission  = c("advanced"), 
-#  stringsAsFactors = F
-#)
-#saveRDS(credentials, "cred.rds")
-#drop_upload("cred.rds", path = "responses")
+
 drop_download("responses/cred.rds", overwrite = TRUE)
 credentials <- readRDS("cred.rds")
+credentials <- remove_rownames(credentials)
+unlink("cred.rds")
 # Server Variables
 backbone <- readRDS("data/Backbone.rds")
 
@@ -51,7 +43,7 @@ cips <- cips %>% rename("CIPCODE" = "Codevalue", "CIPNAME" = "valueLabel")
 #ent_degree <- readRDS("data/Ent_Degree.rds")
 state_abbr <- readRDS("data/state_abbr.rds")
 major_master <- readRDS("data/CIPS.rds")
-
+major_master <- tibble::rowid_to_column(major_master, "ID")
 #ent_degree <- readRDS("data/Ent_Degree.rds")
 occupation_master <- readRDS("data/Occupations.rds")
 
@@ -62,8 +54,6 @@ school_master2 <- school_master %>% filter(UNITID %in% unique(backbone$UNITID))
 school_master2 <- school_master2 %>% mutate(ROOM_BOARD = (ROOMAMT + BOARDAMT + RMBRDAMT))
 school_master3 <- school_master2
 school_master3$INSTNM <- make.unique(as.character(school_master3$INSTNM), sep = "_")
-
-
 
 state_abbr_master <- readRDS("data/state_abbr.rds")
 school_master2 <- left_join(school_master2, state_abbr_master, by = "STABBR")
@@ -99,7 +89,6 @@ pro_user <- character()
 # 03 Functions ----
 school_list4 <- tibble("INSTNM" = character())
 school_list4 <- as_tibble(make.unique(as.character(school_list$INSTNM), sep = "_"))
-#write_csv(school_master, "School.csv")
 
 # 04.1 Header ----
 header <- dashboardHeaderPlus( uiOutput("logoutbtn"))
@@ -120,8 +109,6 @@ body <- dashboardBody(
         var boxHeight = window_height - header_height - 50;
         $("#dashboard_window").height(boxHeight);
         $("#build_window").height(boxHeight);
-        $("#manage_window").height(boxHeight);
-        $("#compare_window").height(boxHeight);
         $("#explore_window").height(boxHeight);
         $("#school_window").height(boxHeight);
         $("#major_window").height(boxHeight);
@@ -143,13 +130,7 @@ body <- dashboardBody(
     ')),
   useShinyjs(),
   useShinyalert(),
-  tags$head(
-    tags$style(HTML("
-                      .my_class {
-                      font-weight: bold;
-                      color:#eaedef;
-                      }"))
-  ),
+  tags$head(tags$style(HTML(".my_class {font-weight: bold;color:#eaedef;}"))),
   
   # 04.4 TABS ----
   tabItems(
@@ -242,12 +223,10 @@ body <- dashboardBody(
                                     div(id = "comparison_box",
                                         plotOutput(outputId = "comparison_container")
                                     )))
-                    
-            )#
+            )
     ),
     tabItem(tabName = "build",
             boxPlus(id = "build_window", width = 12, style = "padding: 0px;margin: 0px;overflow-y: auto;overflow-x:hidden;",
-                    
                     fluidRow(column(width = 1),
                              column(width = 10,
                                     id = "header1", uiOutput(outputId = "build_header1"))),
@@ -398,9 +377,8 @@ body <- dashboardBody(
     
     tabItem(tabName = "school",
             boxPlus(id = "school_window", width = 12, style = "padding: 0px;margin: 0px;overflow-y: auto;",
-                    
                    column(width = 2,style = "padding:0px;margin:0px;",
-                      div(align = 'center', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#e2ac24;color:white;",
+                      div(align = 'left', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#e2ac24;color:white;",
                           h2("Explore Schools")),
                       div(align = 'left',
                       style = "background-color:white;padding-left: 5px;margin-left:0px;",
@@ -413,12 +391,12 @@ body <- dashboardBody(
                                     width = "90%"),
                         sliderInput(inputId = "es_annual_hi", label = "Annual Cost High",
                                     value = max(school_master2$TotCstOutHi),
-                                    min = min(school_master2$TotCstOutHi),
+                                    min = 0,
                                     max = max(school_master2$TotCstOutHi),
                                     width = "90%"),
                         sliderInput(inputId = "es_annual_lo", label = "Annual Cost Low",
                                     value = max(school_master2$TotCstOutLo),
-                                    min = min(school_master2$TotCstOutLo),
+                                    min = 0,
                                     max = max(school_master2$TotCstOutLo),
                                     width = "90%"),
                       actionButton(inputId = "school_favorite", label = "Add to Favorites"),
@@ -426,20 +404,23 @@ body <- dashboardBody(
                       )
                       ),
                       column(width = 10,
-                          div(align = 'center', style = "font-size: 16px; padding: 0px; margin-top:2em;
+                          div(align = 'left', style = "font-size: 16px; padding: 0px; margin-top:2em;
                       margin-left: 0px; margin-right: 0px;overflow-y: auto;", 
                               tabBox(width = 12, id = "es_tab", side = "left",
                                      tabPanel("Table", div(class = "school_header_label", p("School Table")),
                                               DT::dataTableOutput(
                                        outputId = "es_table", width = "100%", height = "auto")),
-                                     tabPanel("Favorites", "Favorites"))
+                                     tabPanel("Favorites", 
+                                              div(id = "school_favorite_box",
+                                                  uiOutput(outputId = "school_favorite_container")
+                                              )))
                               ))
             )
     ),
     tabItem(tabName = "major",
             boxPlus(id = "major_window", width = 12, style = "padding: 0px;margin: 0px;overflow-y: auto;",
                     column(width = 2, style ="padding:0px;margin:0px;",
-                           div(align = 'center', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#37b749;color:white;",
+                           div(align = 'left', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#37b749;color:white;",
                                h2("Explore Majors")),
                            div(align = 'left',
                                style = "background-color:white;padding-left: 5px;margin-left:0px;",
@@ -454,7 +435,7 @@ body <- dashboardBody(
                            )
                       ),
                         column(width = 10,
-                          div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:2em;
+                          div(align = 'left', style = "font-size: 16px; padding-top: 0px; margin-top:2em;
                           margin-left: 0px; margin-right: 0px;overflow-y: auto;", 
                               tabBox(width = 12, id = "em_tab", side = "left",
                                      tabPanel("Table", div(class = "major_header_label", p("Major Table")),
@@ -463,14 +444,17 @@ body <- dashboardBody(
                                                 width = "100%",
                                                 height = "auto"
                                               )),
-                                     tabPanel("Favorites", "Favorites"))
+                                     tabPanel("Favorites",
+                                              div(id = "major_favorite_box",
+                                                  uiOutput(outputId = "major_favorite_container")
+                                     )))
                                     ))
                     )
             ),
     tabItem(tabName = "occupation",
             boxPlus(id = "occupation_window", width = 12, style = "padding: 0px;margin: 0px;overflow-y: auto;",
                     column(width = 2, style ="padding:0px;margin:0px;",
-                           div(align = 'center', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#477ddd;color:white;",
+                           div(align = 'left', style = "font-size: 14px; padding-top: 10px;padding-bottom: 10px;margin: 0em;border: 0px; background-color:#477ddd;color:white;",
                                h2("Explore Occupations")),
                            div(align = 'left',
                                style = "background-color:white;padding-left: 5px;margin-left:0px;",
@@ -495,7 +479,7 @@ body <- dashboardBody(
                                )
                       ),
                     column(width = 10,
-                           div(align = 'center', style = "font-size: 16px; padding-top: 0px; margin-top:2em;
+                           div(align = 'left', style = "font-size: 16px; padding-top: 0px; margin-top:2em;
                           margin-left: 0px; margin-right: 0px;overflow-y: auto;", 
                                tabBox(width = 12, id = "eo_tab", side = "left",
                                       tabPanel("Table", div(class = "occupation_header_label", p("Occupation Table")),
@@ -504,7 +488,10 @@ body <- dashboardBody(
                                                  width = "100%",
                                                  height = "auto"
                                                )),
-                                      tabPanel("Favorites", "Favorites"))
+                                      tabPanel("Favorites", 
+                                               div(id = "occupation_favorite_box",
+                                                  uiOutput(outputId = "occupation_favorite_container")
+                                      )))
                            ))
                     )
             ),
@@ -545,6 +532,10 @@ ui <- dashboardPagePlus( header, sidebar, body, useShinyjs(), tags$head(tags$met
 
 # 05 SERVER ----
 server <- function(input, output, session) {
+  observe({
+    shinyjs::runjs("document.getElementsByClassName('sidebar-toggle')[0].style.visibility = 'hidden';")
+  }) 
+  
   login <- FALSE
   USER <- reactiveValues(login = login)
   
@@ -590,22 +581,26 @@ server <- function(input, output, session) {
     if(drop_exists(filename2) == TRUE) {
       drop_download(filename2, overwrite = TRUE)
       user_scenarios <<- readRDS(scenario_file)
+      clean_scenario()
+      school_favorite_cards()
+      major_favorite_cards()
+      occupation_favorite_cards()
       update_scenario()
     } 
     filename3 <- paste0("responses/",favorite_file)
     if(drop_exists(filename3) == TRUE) {
       drop_download(filename3, overwrite = TRUE)
       user_favorites <<- readRDS(favorite_file)
+      clean_favorite()
       favor_temp <- user_favorites 
       if(NROW(favor_temp) > 0) {
         favorite_cards()
-    } 
+        } 
     }
   }
   onevent("dblclick", "occupation_next", click("occupation_add"))
   onevent("dblclick", "major_next", click("major_add"))
   onevent("dblclick", "school_next", click("school_add"))
-
   
   output$logoutbtn <- renderUI({
     req(USER$login)
@@ -618,7 +613,6 @@ server <- function(input, output, session) {
   output$sidebarpanel <- renderUI({
     if (USER$login == TRUE ){ 
       if (credentials[,"permission"][which(credentials$username_id==input$userName)]=="advanced") {
-        
         sidebarMenu(id = "tabs", 
                     menuItem("Profile", tabName = "profile", icon = icon("user")),
                     menuItem("Dashboard", tabName = "dashboard", icon = icon("tachometer-alt"),selected = TRUE),
@@ -644,10 +638,6 @@ server <- function(input, output, session) {
         updateTabItems(session, "log_tabs", "login")
       }
   })
-  
-  observe({
-    shinyjs::runjs("document.getElementsByClassName('sidebar-toggle')[0].style.visibility = 'hidden';")
-  }) 
   observeEvent(input$add_user, {
     ### This is the pop up board for input a new row
     showModal(modalDialog(title = "Add a new account",
@@ -674,8 +664,19 @@ server <- function(input, output, session) {
     credentials <<- rbind(credentials, new_row)
     saveRDS(credentials, "cred.rds")
     drop_upload("cred.rds", path = "responses")
+    clean_cred()
     removeModal()
   })
+  
+  clean_cred <- function() {
+    unlink("cred.rds")
+  }
+  clean_scenario <- function() {
+    unlink(scenario_file)
+  }
+  clean_favorite <- function() {
+    unlink(favorite_file)
+  }
   current_user <- tibble()
   build_variables <- reactiveValues(current_page = 1)
   temp_choice <- reactiveValues(school_status = 1, major_status = 1, occupation_status = 1, degree_status = 1)
@@ -710,20 +711,18 @@ server <- function(input, output, session) {
   degree_list_selected <- vector(mode = "list")
   occupation_list_selected <- vector(mode = "list")
   major_list_selected <- vector(mode = "list")
-  #old saved data format
-  user_scen01 <- tibble("ID" = numeric(), "scenario" = character())
-  #new saved data format
+
   user_scenarios <- tibble("user" = character(),
-                              "scenario" = character(),
-                              "source" = character(),
-                              "category" = character(),
-                              "id" = character())
+                           "scenario" = character(),
+                           "source" = character(),
+                           "category" = character(),
+                           "id" = character())
   
   user_favorites <- tibble("user" = character(),
-                               "school" = character(),
-                               "major" = character(),
-                               "occupation" = character(),
-                               "degree" = character())
+                           "school" = character(),
+                           "major" = character(),
+                           "occupation" = character(),
+                           "degree" = character())
 
   choosen_scenario <- character()
   new_scenario_name <- character()
@@ -731,6 +730,19 @@ server <- function(input, output, session) {
   favorite_temp <- character()
   obsList <- list()
   detailList <- list()
+  
+  school_favorite_temp <- character()
+  schooldetailList <- list()
+  schoolobsList <<- list()
+  
+  major_favorite_temp <- character()
+  majordetailList <- list()
+  majorobsList <<- list()
+  
+  occupation_favorite_temp <- character()
+  occupationdetailList <- list()
+  occupationobsList <<- list()
+  
   checkList <- list()
   graphList <-vector(mode = "list")
   
@@ -830,7 +842,6 @@ server <- function(input, output, session) {
     shinyjs::show(id = "scenario_text")
     shinyjs::show(id = "scenario_available")
     shinyjs::show(id = "dt_scenario")
- #   shinyjs::show(id = "return_current")
     shinyjs::show(id = "add_favorite")
     shinyjs::show(id = "build_new")
     shinyjs::show(id = "return_dashboard")
@@ -840,7 +851,6 @@ server <- function(input, output, session) {
     shinyjs::hide(id = "scenario_text")
     shinyjs::hide(id = "scenario_available")
     shinyjs::hide(id = "dt_scenario")
-#    shinyjs::hide(id = "return_current")
     shinyjs::hide(id = "add_favorite")
     shinyjs::hide(id = "build_new")
     shinyjs::hide(id = "return_dashboard")
@@ -966,7 +976,6 @@ server <- function(input, output, session) {
     major_list_selected <<- vector(mode = "list")
     build_variables$current_page <<- 1
     edit_scenario <<- 0
-    # scenario name   
     update_scenario()
   }
   observe({
@@ -1047,7 +1056,6 @@ server <- function(input, output, session) {
         school_page()
         showline()
         shownext()
- #       school_cards()
         output$next_select <- renderUI({actionButton(inputId = "next_button", label = "Next", icon = icon("arrow-right")) })
     }
   })
@@ -1119,7 +1127,6 @@ server <- function(input, output, session) {
     favor_num <- user_favorites %>% filter(user %in% pro_user)
     output$favorites <- renderUI({p(paste0("Favorite Options (", NROW(favor_num),")"))})
   }
-
 
   observe({
     if(temp_choice$school_status == 1){
@@ -1363,7 +1370,6 @@ server <- function(input, output, session) {
       }, ignoreInit = TRUE, once = TRUE)
     }
   }
-  
 
   # 09 Occupation info ----
   observeEvent(input$occupation_add, {
@@ -1431,7 +1437,6 @@ server <- function(input, output, session) {
       }, ignoreInit = TRUE, once = TRUE)
     }
   }
-  
 
   school_unavailable <- function(){
     if(is_empty(major_list_selected) & is_empty(degree_list_selected) & is_empty(occupation_list_selected)){
@@ -1555,9 +1560,8 @@ server <- function(input, output, session) {
       scen_temp <- new_scenario_name
     } else  {
       scen_temp <- temp_scenario
-      
     }
-#    edit_scenario <<- 0
+
     if(!is_empty(school_list_selected)){
       for(i in 1:NROW(school_list_selected)){
         school_temp <- filter(school_filter, INSTNM %in% school_list_selected) %>% select(UNITID)
@@ -1593,12 +1597,12 @@ server <- function(input, output, session) {
     if(pro_name != "Demo") {
       saveRDS(user_scenarios, scenario_file)
       drop_upload(scenario_file, path = "responses")
+      clean_scenario()
     }
   }
 build_radio <- function(){  
     scen_temp2 <- user_scenarios %>%  distinct(user_scenarios$scenario, .keep_all = TRUE)
     scen_temp2 <- scen_temp2[grep("Scenario", scen_temp2$scenario),]
-#    write.csv(user_scen01, "userdata.csv")
     if(!is_empty(scen_temp2$scenario)){
     output$scenario_available <- renderUI({
       div(
@@ -1730,12 +1734,10 @@ build_radio <- function(){
     scenario_temp <- left_join(scenario_temp, major_scenario2, by = "CIPCODE")
     scenario_temp <- left_join(scenario_temp, degree_scenario2, by = "AWLEVEL")
     scenario_temp <- left_join(scenario_temp, occupation_scenario2, by = "OCCCODE")
-    
     scenario_temp <- scenario_temp %>% rename("School" = "INSTNM", "State" = "STABBR", "Cost" = "TOTALT",
                                               "Major" = "CIPNAME", "Degree" = "LEVELName", 
                                               "Occupation" = "OCCNAME", "Salary" = "X17p"
     )
-#    saveRDS(scenario_temp, "scen_temp.rds")
     favorite_temp <<- scenario_temp
     output$scenario_table <- renderDataTable({
       DT::datatable(
@@ -1796,6 +1798,7 @@ build_radio <- function(){
     if(pro_name != "Demo") {
     saveRDS(user_favorites, favorite_file)
     drop_upload(favorite_file, path = "responses")
+    clean_favorite()
     }
   }
   observeEvent(input$return_dashboard_button, {
@@ -1805,7 +1808,6 @@ build_radio <- function(){
     clear_build()
     scenario_source <<- 2
     updateTabItems(session, "tabs", selected = "build")
-   
   })
 
   observeEvent(input$dash_schools, {
@@ -1823,11 +1825,11 @@ build_radio <- function(){
   })
   
   update_scenario <- function() {
-    user_scen_temp <- user_scenarios %>% distinct(scenario, .keep_all = TRUE)
+    user_scen_temp <- user_scenarios %>% select(scenario) %>% filter(!(scenario == "favorite")) %>% distinct(scenario, .keep_all = FALSE)
     if(NROW(user_scen_temp) == 0){
       new_scenario_name <<- "Scenario 1"
     } else {
-      temp_val <- user_scenarios %>% select(scenario) %>% filter(!(scenario == "Favorite")) %>% distinct(scenario, .keep_all = FALSE)
+      temp_val <- user_scenarios %>% select(scenario) %>% filter(!(scenario == "favorite")) %>% distinct(scenario, .keep_all = FALSE)
       temp_val <- as.vector(temp_val$scenario)
       temp_val <- str_remove_all(temp_val, "Scenario ")
       temp_val <- max(as.numeric(temp_val))
@@ -1871,9 +1873,7 @@ build_radio <- function(){
           line-height: '110%';
           "
         )
-        
         do.call(shiny::flowLayout, args)
-        
       })
     } else {
       output$favorite_container <- renderUI({NULL})
@@ -1892,7 +1892,7 @@ build_radio <- function(){
                             checkboxInput(inputId = paste0("check",name), label = "", width = "22px")),
                         h3("Option ",x,style = "margin-top: 0px;"),
                         actionButton(inputId = paste0("button",name),label = "", icon = icon("trash"),
-                                     style = "margin:0px;color:red;"))),
+                                     style = "margin:0px;color:#b30000;"))),
         hr(style = "margin:0px;border-top: 1px solid #000000;"),
         br(),
         div(style = "font-family: Arial;font-size:16px; color:#999999;",
@@ -1940,7 +1940,6 @@ build_radio <- function(){
     detailNm <- paste0("details",name)
     if(length(detailList[[detailNm]]) == 0){
       detailList[[detailNm]] <<- observeEvent(input[[detailNm]], {
-#        print(detailList)
       },ignoreInit = TRUE)
     }
   }
@@ -2054,12 +2053,13 @@ build_radio <- function(){
                         choices = isolate(c(All = '', sort(es_state_list))), selected = '')
     }
     es_school_temp <- es_school_temp %>% mutate(GRADR150 = BAGR150 + L4GR150)   
+    school_favorite_temp <<- es_school_temp
     es_school_temp <- es_school_temp %>% select("INSTNM", "STABBR", "CITY", "WEBADDR", "APPLCN", "ADMSSN", "ENRLT","ROOM_BOARD",
                                               "GRADR150", "TotCstInHi", "TotCstOutHi", "TotCstInLo", "TotCstOutLo")
     
     es_temp1 <- es_school_temp$TotCstInLo == 0
     es_school_temp <- cbind(es_school_temp, es_temp1)
-
+    
     #Rename table column headers     
     es_school_temp <- es_school_temp %>% rename("School<br>Name" = "INSTNM", "State" = "STABBR", "City" = "CITY",
                                                 "Web<br>Address" = "WEBADDR", "Apps" = "APPLCN",
@@ -2069,7 +2069,6 @@ build_radio <- function(){
                                                 "Out of State<br>Cost w/IG" = "TotCstOutLo", "In State<br>Cost" = "TotCstInHi",
                                                 "Out of State<br>Cost" = "TotCstOutHi"
                                                 )
-    #      saveRDS(curriculum_temp, "cur.rds")
   })
   observe( {  
     output$es_table <- renderDataTable({
@@ -2139,7 +2138,7 @@ build_radio <- function(){
       updateSelectInput(session, inputId = "eo_required_exp", label = "Required Experience",
                         choices = isolate(c(All = '', sort(eo_required_exp_list))), selected = '')
     }
-    
+    occupation_favorite_temp <<- occupation_temp
     occupation_temp <- occupation_temp %>% select("OCCNAME", "EmplyChg", "EmplyPC", "SelfEmpl", "Entry_Degree", "Experience", "X10p", "X17p",
                                                     "X25p", "X50p", "X75p", "X82p", "X90p")
     occupation_temp$X10p <- round(occupation_temp$X10p, 0)
@@ -2195,6 +2194,7 @@ build_radio <- function(){
   })
   em_table_var <- reactive ({  
     curriculum_temp <- major_master
+    
     if(!is.null(input$em_school) & input$em_school !='') {
       school_temp <- filter(school_master2, INSTNM %in% input$em_school) %>% select(UNITID)
       curriculum_temp <- filter(curriculum_temp, UNITID %in% school_temp)
@@ -2213,7 +2213,7 @@ build_radio <- function(){
     curriculum_temp <- left_join(curriculum_temp, cips, by = "CIPCODE")
     curriculum_temp <- left_join(curriculum_temp, degree_master, by = c("AWLEVEL", "Years"))
     curriculum_temp <- left_join(curriculum_temp, school_master2, by = "UNITID")
-    
+    major_favorite_temp <<- curriculum_temp %>% select("ID", "CIPNAME", "LEVELName", "INSTNM", "CITY", "STABBR", "GTotCstOutHi", "ROOM_BOARD")
     curriculum_temp <- curriculum_temp %>% select( "CIPNAME", "LEVELName", "INSTNM",   
                                                   "CTOTALT")
  
@@ -2236,7 +2236,7 @@ build_radio <- function(){
     curriculum_temp <- curriculum_temp %>% rename("School<br>Name" = "INSTNM", 
                                                   "Major" = "CIPNAME", "Degree<br>Name" = "LEVELName",
                                                   "Number of<br>Degrees" = "CTOTALT")
-    #      saveRDS(curriculum_temp, "cur.rds")
+
   })
   observe( {  
     output$em_table <- renderDataTable({
@@ -2327,6 +2327,338 @@ build_radio <- function(){
     updateTabItems(session, "tabs", selected = "build")
     output$occupation_return <- renderUI({NULL})
   })
+  
+  observeEvent(input$school_favorite, {
+    req(input$es_table_rows_selected)
+    favorite_to_add <- school_favorite_temp[input$es_table_rows_selected,]    
+    fav_school <- favorite_to_add %>% select(UNITID)        
+    favor_temp <- user_scenarios %>% filter(scenario %in% "favorite", source %in% "favorite", category %in% "school", id %in% fav_school)
+    if(is_empty(favor_temp$scenario)){
+      fav_temp <- tibble("user" = pro_user, "scenario" = "favorite", "source" = "favorite",  "category" = "school", "id" = fav_school$UNITID )
+      user_scenarios <<- rbind(user_scenarios, fav_temp)
+      save_scenario()
+      school_favorite_cards()
+    }
+  })
+
+  school_favorite_cards <- function() {
+    fav_card <- tibble()
+    fav_temp <- user_scenarios %>% filter(source %in% "favorite", category %in% "school")
+    fav_card <- school_master3 %>% filter(UNITID %in% fav_temp$id)         
+    scenario_temp <- fav_card 
+    if(NROW(scenario_temp) > 0){
+      output$school_favorite_container <- renderUI({
+        args <- lapply(1:NROW(scenario_temp), function(.x) fav_school_card(.x,
+                                                                 name = scenario_temp$UNITID[.x],
+                                                                 school = scenario_temp$INSTNM[.x],
+                                                                 city = scenario_temp$CITY[.x],
+                                                                 state = scenario_temp$STABBR[.x],
+                                                                 tuition_low = scenario_temp$GTotCstInHi[.x],
+																 tuition_hi = scenario_temp$GTotCstOutHi[.x]))
+        args$cellArgs <- list(
+          style = "
+                                            width: 350px;
+                                            height: auto;
+                                            margin: 5px;
+                                            margin-bottom:50px;
+                                            margin-left:45px;
+                                            
+                                            line-height: '110%';
+                                            "
+        )
+        do.call(shiny::flowLayout, args)
+      })
+    } else {
+      output$school_favorite_container <- renderUI({NULL})
+      schoolobsList <<- list()
+    }
+  }
+  
+  fav_school_card <- function(x,name,school,city,state,tuition_low,tuition_hi) {
+    make_school_observer(name)
+    make_school_detail_obs(name)
+    div(
+      class = "explore_card", 
+      div(
+        style = "display:inline-block;vertical-align:top;width: 338px;margin:0px;padding: 15px;border:2px solid #e9ecee;
+        border-top: 12px solid #e2ac24;border-radius: 10px;",
+        splitLayout(
+          cellWidths = c("92%", "8%"),
+          h4(school, style = "margin-top: 5px;overflow:hidden;"),
+          actionButton(
+            inputId = paste0("schoolbutton", name),
+            label = "",
+            icon = icon("trash"),
+            style = "margin:0px;padding: 2px 5px;color:#cc0000;font-size:12px;"
+          )
+        ),
+        h5(style = "font-style: italic;margin-top:0px;",city, ",", state),
+        hr(style = "margin:0px;border-top: 1px solid #000000;"),
+        br(),
+        div(
+          style = "font-family: Arial;font-size:16px; color:#999999;",
+          p("$",tuition_low, "Annual In State Cost"),
+          p("$",tuition_hi, "Annual Out of State Cost"),
+          hr(style = "margin:0px;border-top: 1px solid #000000;") ,
+          br(),
+          div(
+            class = "view_detail", align = "center",
+            actionButton(
+              inputId = paste0("school_details", name),
+              label = "More Details",
+              style = "border:0px;color:#4fa0f7;background-color:white;margin-left:0px;padding:0px;
+                                                 border-bottom: 1px solid #4fa0f7;font-size:16px;"
+            )
+          )
+        )
+      )
+    )
+  }
+  make_school_observer <- function(name){
+    schoolbtName <- paste0("schoolbutton",name)
+    if(length(schoolobsList[[schoolbtName]]) == 0){
+      schoolobsList[[schoolbtName]] <<- observeEvent(input[[schoolbtName]], {
+        user_scenarios <<- user_scenarios %>% filter(!(id == name & scenario == "favorite" & category == "school"))   
+        save_scenario()
+        schoolobsList <<- list()
+        school_favorite_cards()
+      }, ignoreInit = TRUE, once = TRUE)
+    }
+  }
+    make_school_detail_obs <- function(name) {
+    schooldetailNm <- paste0("school_details",name)
+    if(length(schooldetailList[[schooldetailNm]]) == 0){
+      schooldetailList[[schooldetailNm]] <<- observeEvent(input[[schooldetailNm]], {
+# this is where school details goes
+        
+      },ignoreInit = TRUE)
+    }
+    }
+    observeEvent(input$major_favorite, {
+      req(input$em_table_rows_selected)
+      favorite_to_add <- major_favorite_temp[input$em_table_rows_selected,]    
+      fav_major <- favorite_to_add %>% select(ID)        
+      favor_temp <- user_scenarios %>% filter(scenario %in% "favorite", source %in% "favorite", category %in% "major", id %in% fav_major)
+      if(is_empty(favor_temp$scenario)){
+        fav_temp <- tibble("user" = pro_user, "scenario" = "favorite", "source" = "favorite",  "category" = "major", "id" = fav_major$ID )
+        user_scenarios <<- rbind(user_scenarios, fav_temp)
+        save_scenario()
+        major_favorite_cards()
+      }
+    })
+    
+    major_favorite_cards <- function() {
+      fav_card <- tibble()
+      fav_temp <- user_scenarios %>% filter(source %in% "favorite", category %in% "major")
+      fav_card <- major_master %>% filter(ID %in% fav_temp$id) 
+      fav_card <- left_join(fav_card, cips, by = "CIPCODE")
+      fav_card <- left_join(fav_card, degree_master, by = c("AWLEVEL", "Years"))
+      fav_card <- left_join(fav_card, school_master2, by = "UNITID")
+      fav_card <- fav_card %>% select("ID", "CIPNAME", "LEVELName", "INSTNM", "CITY", "STABBR", "GTotCstOutHi", "ROOM_BOARD")
+      scenario_temp <- fav_card 
+      if(NROW(scenario_temp) > 0){
+        output$major_favorite_container <- renderUI({
+          args <- lapply(1:NROW(scenario_temp), function(.x) fav_major_card(.x,
+                                                                             name = scenario_temp$ID[.x],
+                                                                             school = scenario_temp$INSTNM[.x],
+                                                                             city = scenario_temp$CITY[.x],
+                                                                             state = scenario_temp$STABBR[.x],
+                                                                             major = scenario_temp$CIPNAME[.x],
+                                                                             tuition_hi = scenario_temp$GTotCstOutHi[.x],
+                                                                             degree = scenario_temp$LEVELName[.x],
+                                                                             room = scenario_temp$ROOM_BOARD[.x]))
+          args$cellArgs <- list(
+            style = "
+                                            width: 350px;
+                                            height: auto;
+                                            margin: 5px;
+                                            margin-bottom:50px;
+                                            margin-left:45px;
+                                            
+                                            line-height: '110%';
+                                            "
+          )
+          do.call(shiny::flowLayout, args)
+        })
+      } else {
+        output$major_favorite_container <- renderUI({NULL})
+        majorobsList <<- list()
+      }
+    }
+    
+    fav_major_card <- function(x,name,school,city,state,major,tuition_hi,degree,room) {
+      make_major_observer(name)
+      make_major_detail_obs(name)
+      div(
+        class = "explore_card", 
+        div(
+          style = "display:inline-block;vertical-align:top;width: 338px;margin:0px;padding: 15px;border:2px solid #e9ecee;
+        border-top: 12px solid #37b749;border-radius: 10px;",
+          splitLayout(
+            cellWidths = c("92%", "8%"),
+            h4(major, style = "margin-top: 5px;overflow:hidden;"),
+            actionButton(
+              inputId = paste0("majorbutton", name),
+              label = "",
+              icon = icon("trash"),
+              style = "margin:0px;padding: 2px 5px;color:#cc0000;font-size:12px;"
+            )
+          ),
+          h5(style = "font-style: italic;margin-top:0px;",school),
+          h5(style = "font-style: italic;margin-top:0px;",city, ",", state),
+          hr(style = "margin:0px;border-top: 1px solid #000000;"),
+          br(),
+          div(
+            style = "font-family: Arial;font-size:16px; color:#999999;",
+            p(degree),
+            p("$",tuition_hi, "Annual Out of State Cost"),
+            p("$",room, "Room and Board"),
+            hr(style = "margin:0px;border-top: 1px solid #000000;") ,
+            br(),
+            div(
+              class = "view_detail", align = "center",
+              actionButton(
+                inputId = paste0("major_details", name),
+                label = "More Details",
+                style = "border:0px;color:#4fa0f7;background-color:white;margin-left:0px;padding:0px;
+                                                 border-bottom: 1px solid #4fa0f7;font-size:16px;"
+              )
+            )
+          )
+        )
+      )
+    }
+    make_major_observer <- function(name){
+      majorbtName <- paste0("majorbutton",name)
+      if(length(majorobsList[[majorbtName]]) == 0){
+        majorobsList[[majorbtName]] <<- observeEvent(input[[majorbtName]], {
+          user_scenarios <<- user_scenarios %>% filter(!(id == name & scenario == "favorite" & category == "major"))   
+          save_scenario()
+          majorobsList <<- list()
+          major_favorite_cards()
+        }, ignoreInit = TRUE, once = TRUE)
+      }
+    }
+    make_major_detail_obs <- function(name) {
+      majordetailNm <- paste0("major_details",name)
+      if(length(majordetailList[[majordetailNm]]) == 0){
+        majordetailList[[majordetailNm]] <<- observeEvent(input[[majordetailNm]], {
+          # this is where major details goes
+          
+        },ignoreInit = TRUE)
+      }
+    }
+    observeEvent(input$occupation_favorite, {
+      req(input$eo_table_rows_selected)
+      favorite_to_add <- occupation_favorite_temp[input$eo_table_rows_selected,]    
+      fav_occupation <- favorite_to_add %>% select(OCCCODE)        
+      favor_temp <- user_scenarios %>% filter(scenario %in% "favorite", source %in% "favorite", category %in% "occupation", id %in% fav_occupation)
+      if(is_empty(favor_temp$scenario)){
+        fav_temp <- tibble("user" = pro_user, "scenario" = "favorite", "source" = "favorite",  "category" = "occupation", "id" = fav_occupation$OCCCODE )
+        user_scenarios <<- rbind(user_scenarios, fav_temp)
+        save_scenario()
+        occupation_favorite_cards()
+      }
+    })
+    
+    occupation_favorite_cards <- function() {
+      fav_card <- tibble()
+      fav_temp <- user_scenarios %>% filter(source %in% "favorite", category %in% "occupation")
+      fav_card <- occupation_master %>% filter(OCCCODE %in% fav_temp$id)         
+      scenario_temp <- fav_card 
+      if(NROW(scenario_temp) > 0){
+        output$occupation_favorite_container <- renderUI({
+          args <- lapply(1:NROW(scenario_temp), function(.x) fav_occupation_card(.x,
+                                                                             name = scenario_temp$OCCCODE[.x],
+                                                                             occupation = scenario_temp$OCCNAME[.x],
+                                                                             jobs = scenario_temp$Emply2018[.x],
+                                                                             growth = scenario_temp$EmplyPC[.x],
+                                                                             medwage = scenario_temp$MedWage[.x],
+                                                                             entry = scenario_temp$Entry_Degree[.x],
+                                                                             experience = scenario_temp$Experience[.x]))
+          args$cellArgs <- list(
+            style = "
+                                            width: 350px;
+                                            height: auto;
+                                            margin: 5px;
+                                            margin-bottom:50px;
+                                            margin-left:45px;
+                                            
+                                            line-height: '110%';
+                                            "
+          )
+          do.call(shiny::flowLayout, args)
+        })
+      } else {
+        output$occupation_favorite_container <- renderUI({NULL})
+        occupationobsList <<- list()
+      }
+    }
+    
+    fav_occupation_card <- function(x,name,occupation,jobs,growth,medwage,entry,experience) {
+      make_occupation_observer(name)
+      make_occupation_detail_obs(name)
+      div(
+        class = "explore_card", 
+        div(
+          style = "display:inline-block;vertical-align:top;width: 338px;margin:0px;padding: 15px;border:2px solid #e9ecee;
+        border-top: 12px solid #477ddd;border-radius: 10px;",
+          splitLayout(
+            cellWidths = c("92%", "8%"),
+            h4(occupation, style = "margin-top: 5px;overflow:hidden;"),
+            actionButton(
+              inputId = paste0("occupationbutton", name),
+              label = "",
+              icon = icon("trash"),
+              style = "margin:0px;padding: 2px 5px;color:#cc0000;font-size:12px;"
+            )
+          ),
+          hr(style = "margin:0px;border-top: 1px solid #000000;"),
+          br(),
+          div(
+            style = "font-family: Arial;font-size:16px; color:#999999;",
+            p("Entry Degree :",entry),
+            p("2018 Median Pay :", "$",medwage),
+            p("2018 Jobs :", jobs),
+            p("2018 Growth Rt :", growth),
+            p("Years of Exp :", experience),
+            
+            hr(style = "margin:0px;border-top: 1px solid #000000;") ,
+            br(),
+            div(
+              class = "view_detail", align = "center",
+              actionButton(
+                inputId = paste0("occupation_details", name),
+                label = "More Details",
+                style = "border:0px;color:#4fa0f7;background-color:white;margin-left:0px;padding:0px;
+                                                 border-bottom: 1px solid #4fa0f7;font-size:16px;"
+              )
+            )
+          )
+        )
+      )
+    }
+    make_occupation_observer <- function(name){
+      occupationbtName <- paste0("occupationbutton",name)
+      if(length(occupationobsList[[occupationbtName]]) == 0){
+        occupationobsList[[occupationbtName]] <<- observeEvent(input[[occupationbtName]], {
+          user_scenarios <<- user_scenarios %>% filter(!(id == name & scenario == "favorite" & category == "occupation"))   
+          save_scenario()
+          occupationobsList <<- list()
+          occupation_favorite_cards()
+        }, ignoreInit = TRUE, once = TRUE)
+      }
+    }
+    make_occupation_detail_obs <- function(name) {
+      occupationdetailNm <- paste0("occupation_details",name)
+      if(length(occupationdetailList[[occupationdetailNm]]) == 0){
+        occupationdetailList[[occupationdetailNm]] <<- observeEvent(input[[occupationdetailNm]], {
+          # this is where occupation details goes
+          
+        },ignoreInit = TRUE)
+      }
+    }    
+# end of Server code    
 }
 
 shinyApp(ui, server) 
