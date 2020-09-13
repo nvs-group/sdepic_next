@@ -215,6 +215,16 @@
     margin-top: 1em !important;
     border-radius: 20px;    
 }
+#school_favorite, #major_favorite, #occupation_favorite {
+    width: 257px !important;
+    height: 50px !important;
+    background-color: #4fa0f7;
+    color: white;
+    font-size: 1.375em;
+    margin-top: 1em !important;
+    border-radius: 20px;    
+}
+
 #build_new {
     margin-right:auto;
     margin-left:auto;
@@ -248,6 +258,42 @@
     border-radius: 20px;
     margin-bottom: 1em;
     border-color:#4fa0f7;
+}
+#s_return {
+    width: 257px !important;
+    height: 50px !important;
+    background-color: white;
+    color: #e2ac24;;
+    font-size: 1.375em;
+    margin-top: 1em !important;
+    border-radius: 20px;
+    margin-bottom: 1em;
+    border-color:#e2ac24;
+}
+#m_return {
+    width: 257px !important;
+    height: 50px !important;
+    background-color: white;
+    color: #37b749;
+    font-size: 1.375em;
+    margin-top: 1em !important;
+    border-radius: 20px;
+    margin-bottom: 1em;
+    border-color:#37b749;
+}
+#o_return {
+    width: 257px !important;
+    height: 50px !important;
+    background-color: white;
+    color: #477ddd;
+    font-size: 1.375em;
+    margin-top: 1em !important;
+    border-radius: 20px;
+    margin-bottom: 1em;
+    border-color:#477ddd;
+}
+#school_favorite_box , #major_favorite_box, #occupation_favorite_box {
+    height: 825px;
 }
 #previous_button {
     width: 225px !important;
