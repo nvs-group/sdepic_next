@@ -18,17 +18,22 @@ library(extrafont)
 library(shinyLP)
 library(rdrop2)
 library(shinyalert)
+library(emayili)
+library(shinyhelper)
 #library(shinythemes)
 
 # 02 Declare Variables ----
 # UI Variables
+Sys.setenv(TZ='America/New_York')
 token <- readRDS("signin.rds")
 drop_auth(rdstoken = "signin.rds")
 
 drop_download("responses/cred.rds", overwrite = TRUE)
 credentials <- readRDS("cred.rds")
+
 credentials <- remove_rownames(credentials)
 unlink("cred.rds")
+
 # Server Variables
 backbone <- readRDS("data/Backbone.rds")
 
@@ -38,6 +43,16 @@ degree_master <- readRDS("data/AW_Degree.rds")
 
 cips <- readRDS("data/CIP_List.rds")
 cips <- rbind(cips, "No Match")
+#c_temp <- tibble::rowid_to_column(cips, "ID")
+#c_temp2 <- c_temp %>% distinct(Codevalue, .keep_all = TRUE)
+info_items <- readRDS("info.rds")
+
+smtp <- server(host = info_items$host, 
+               port = info_items$port,
+               username = info_items$username,
+               password = info_items$password)
+
+#c_temp3 <- setdiff(c_temp, c_temp2)
 cips <- cips %>% rename("CIPCODE" = "Codevalue", "CIPNAME" = "valueLabel")
 #write.csv(cips, "cips.csv")
 #ent_degree <- readRDS("data/Ent_Degree.rds")
@@ -50,6 +65,7 @@ occupation_master <- readRDS("data/Occupations.rds")
 #occupation_master <- occupation_master %>% rename("Entry_Code" = "AWLEVEL", "Entry_Degree" = "LEVELName")
 #occupation_master <- occupation_master %>% rename("OCCNAME" = "occ_title")
 school_master <- readRDS("data/Schools.rds")
+
 school_master2 <- school_master %>% filter(UNITID %in% unique(backbone$UNITID))
 school_master2 <- school_master2 %>% mutate(ROOM_BOARD = (ROOMAMT + BOARDAMT + RMBRDAMT))
 school_master3 <- school_master2
@@ -100,6 +116,8 @@ sidebar <- dashboardSidebar(
 
 # 04.3 Body ----
 body <- dashboardBody(
+  tags$head(tags$meta( name="viewport", content="width=1920")),
+  tags$head(includeScript("returnClick.js")),
   tags$script(HTML("$('body').addClass('fixed');")),
   tags$head(tags$script('
       // Define function to set height of tab items
@@ -108,6 +126,7 @@ body <- dashboardBody(
         var header_height = $(".main-header").height();
         var boxHeight = window_height - header_height - 50;
         $("#dashboard_window").height(boxHeight);
+        $("#analytics_window").height(boxHeight);
         $("#build_window").height(boxHeight);
         $("#explore_window").height(boxHeight);
         $("#school_window").height(boxHeight);
@@ -130,6 +149,7 @@ body <- dashboardBody(
     ')),
   useShinyjs(),
   useShinyalert(),
+  tags$head(tags$link(rel = "stylesheet", type = "text/css", href = "style.css")),
   tags$head(tags$style(HTML(".my_class {font-weight: bold;color:#eaedef;}"))),
   
   # 04.4 TABS ----
@@ -159,6 +179,16 @@ body <- dashboardBody(
                   )
                 )
             )),
+    tabItem(tabName = "analytics",
+            boxPlus(id = "analytics_window", width = 12, style ="padding: 0px;margin: 0px;overflow-y: auto;overflow-x:hidden;",
+                    fluidRow(
+                    actionButton(inputId = "load_analytics", label = "Load Data"),
+                    actionButton(inputId = "get_csv", label = "Get csv file")
+            ),
+                    dataTableOutput(outputId = "dbox_data")
+                    )
+      
+    ),
     tabItem(tabName = "dashboard",
             boxPlus(id = "dashboard_window", width = 12, style ="padding: 0px;margin: 0px;overflow-y: auto;overflow-x:hidden;",
                     fluidRow(column(width = 6,
@@ -524,18 +554,15 @@ body <- dashboardBody(
 )
 
 # 04.5 UI ----
-ui <- dashboardPagePlus( header, sidebar, body, useShinyjs(), tags$head(tags$meta( name="viewport", content="width=1920")),
-                         tags$head(
-                           tags$link(rel = "stylesheet", type = "text/css", href = "style.css"),
-                           tags$head(includeScript("returnClick.js"))
-                         ))
+ui <- dashboardPagePlus(header, sidebar, body)
 
 # 05 SERVER ----
 server <- function(input, output, session) {
   observe({
     shinyjs::runjs("document.getElementsByClassName('sidebar-toggle')[0].style.visibility = 'hidden';")
   }) 
-  
+  visitor_num <- numeric()
+ 
   login <- FALSE
   USER <- reactiveValues(login = login)
   
@@ -549,8 +576,10 @@ server <- function(input, output, session) {
         if(pasverify) {
           USER$login <- TRUE
           current_user <<- credentials %>% filter(passod %in% pasmatch)
+          get_visitor()
           set_user_var()
           update_profile()
+          log_event()
           get_files()
           output$welcome <- renderUI({paste0("Welcome ",pro_name,"!")})
         } else {
@@ -561,6 +590,25 @@ server <- function(input, output, session) {
       }
     } 
   })
+  
+  get_visitor <- function() {
+    drop_download("responses/counter.rds", overwrite = TRUE)
+    visitor <- readRDS("counter.rds")
+    visitor_num <<- visitor + 1
+    saveRDS(visitor_num, "counter.rds")
+    drop_upload("counter.rds", path = "responses")
+    unlink("counter.rds")
+  }
+  log_event <- function() {
+    current_time <- Sys.time()
+    log_temp <- tibble("visitor" = visitor_num,"user" = pro_user, "time_stamp" = current_time, "page" = input$tabs)
+    visitor_data <<- rbind(visitor_data, log_temp)
+#    print(visitor_data)
+  }
+  observeEvent(input$tabs, {
+    log_event()
+  })
+  
   set_user_var <- function() {
     pro_name <<- current_user$username_id[1]
     pro_email <<- current_user$email[1]
@@ -625,9 +673,23 @@ server <- function(input, output, session) {
                     menuItem("Tools", tabName = "tools", icon = icon("wrench",lib = "glyphicon")),
                     menuItem("Help", tabName = "help", icon = icon("question-circle")),
                     searchInput(inputId = "search", label = "", placeholder = "Search EPIC"))
+      } else if (credentials[,"permission"][which(credentials$username_id==input$userName)]=="admin") {
+        sidebarMenu(id = "tabs", 
+                    menuItem("Analytics", tabName = "analytics", icon = icon("fas fa-chart-bar")),
+                    menuItem("Profile", tabName = "profile", icon = icon("user")),
+                    menuItem("Dashboard", tabName = "dashboard", icon = icon("tachometer-alt"),selected = TRUE),
+                    menuItem("Scenarios", tabName = "build", icon = icon("plus")),
+                    menuItem("Explore", tabName = "explore", icon = icon("fas fa-compass"),
+                             menuSubItem("Explore Schools", tabName = "school"),
+                             menuSubItem("Explore Occupations", tabName = "occupation"),
+                             menuSubItem("Explore Majors", tabName = "major")),
+                    menuItem("Settings", tabName = "settings", icon = icon("cog")),
+                    menuItem("Tools", tabName = "tools", icon = icon("wrench",lib = "glyphicon")),
+                    menuItem("Help", tabName = "help", icon = icon("question-circle")),
+                    searchInput(inputId = "search", label = "", placeholder = "Search EPIC"))
       }
     } else {
-      sidebarMenu(id = "log_tabs",
+      sidebarMenu(id = "tabs",
                   menuItem("Login", tabName = "login")
       )
     }
@@ -635,7 +697,7 @@ server <- function(input, output, session) {
   observe({
     if (USER$login == TRUE ){
       updateTabItems(session, "tabs", "dashboard") } else {
-        updateTabItems(session, "log_tabs", "login")
+        updateTabItems(session, "tabs", "login")
       }
   })
   observeEvent(input$add_user, {
@@ -711,6 +773,15 @@ server <- function(input, output, session) {
   degree_list_selected <- vector(mode = "list")
   occupation_list_selected <- vector(mode = "list")
   major_list_selected <- vector(mode = "list")
+  
+  visitor_data <- tibble("visitor" = character(),
+                         "user" = character(),
+                         "time_stamp" = character(),
+                         "page" = character())
+  d_data <- tibble("visitor" = character(),
+                         "user" = character(),
+                         "time_stamp" = character(),
+                         "page" = character())
 
   user_scenarios <- tibble("user" = character(),
                            "scenario" = character(),
@@ -1097,10 +1168,8 @@ server <- function(input, output, session) {
       output$add_favorite <- renderUI({actionButton(inputId = "add_favorite_button", label = "Add to Favorites") })
       output$build_new <- renderUI({
         div(id = "b_new", align = "center",style = "display: inline-block;",
-            splitLayout(cellWidths = c("20%", "80%"),
-        actionButton(inputId = "build_new_button", label = "", icon = icon("plus")),
-        tags$h3("Build New Scenario...")
-        ))
+        actionButton(inputId = "build_new_button", label = "Build New Scenario...", icon = icon("fas fa-plus-circle"))
+        )
         })
       
       output$return_dashboard <- renderUI({actionButton(inputId = "return_dashboard_button", label = "Return to Dashboard") })
@@ -1178,21 +1247,33 @@ server <- function(input, output, session) {
   observeEvent(input$school_button,{
     build_variables$current_page <<- 6
     schoolclick <<- 1
+    log_event2("school_build")
   })
   observeEvent(input$major_button,{
     build_variables$current_page <<- 7
     majorclick <<- 1
+    log_event2("major_build")
   })
   observeEvent(input$occupation_button,{
     build_variables$current_page <<- 8
     occupationclick <<- 1
+    log_event2("occupation_build")
   })
   observeEvent(input$degree_button,{
     build_variables$current_page <<- 9
     degreeclick <<- 1
+    log_event2("degree_build")
   })
+  
+  log_event2 <- function(x) {
+    current_time <- Sys.time()
+    log_temp <- tibble("visitor" = visitor_num,"user" = pro_user, "time_stamp" = current_time, "page" = x)
+    visitor_data <<- rbind(visitor_data, log_temp)
+#    print(visitor_data)
+  }
   # 06 Next button ----
   observeEvent(input$next_button,{
+    log_event2("next_button")
     if(build_variables$current_page == 5) {
       if(is_empty(major_list_selected) & is_empty(degree_list_selected) & is_empty(occupation_list_selected) & is_empty(school_list_selected)){
         showModal(modalDialog(title = "Please select at least one item",
@@ -1201,6 +1282,7 @@ server <- function(input, output, session) {
       } else {
       add_scenario()
       build_variables$current_page <<- 10
+      log_event2("scenario_table")
       }
     }
     if(build_variables$current_page == 6){
@@ -2289,6 +2371,7 @@ build_radio <- function(){
       scenario_source <<- 1
     } else {
     build_variables$current_page <<- 10
+    log_event2("scenario_table")
     }
   })
   observeEvent(input$school_more, {
@@ -2657,7 +2740,41 @@ build_radio <- function(){
           
         },ignoreInit = TRUE)
       }
-    }    
+    } 
+  observeEvent(input$load_analytics, {
+    filesInfo <- drop_dir("analytics")
+    filePaths <- filesInfo$path_lower
+    d_data <<- lapply(filePaths, drop_read_csv, stringsAsFactors = FALSE)
+    d_data <<- do.call(rbind, d_data)
+    output$dbox_data <- renderDataTable({
+      DT::datatable(data = d_data)
+    })
+  })  
+  
+  observeEvent(input$get_csv, {
+    write.csv(d_data, "analytics_data.csv")
+   
+    email <- envelope() %>%
+      from("romriellsteven@gmail.com") %>%
+      to("lcchapman@gmail.com") %>% 
+      subject("This is the csv file from the app") %>%
+      text("Congrats") %>%
+      attachment(c("analytics_data.csv"))
+
+    smtp(email, verbose = TRUE)
+    unlink("analytics_data.csv")
+  })
+    session$onSessionEnded(function() {
+      if(length(visitor_num) >0){
+        log_event2("logout")
+ #       name_temp <- paste0("visitor",visitor_num,".rds")
+#        saveRDS(visitor_data, name_temp)
+        name_temp <- paste0("visitor",visitor_num,".csv")
+        write.csv(visitor_data, name_temp, row.names = FALSE, quote = TRUE)
+        drop_upload(name_temp, path = "analytics")
+        unlink(name_temp)
+      }
+    })
 # end of Server code    
 }
 
