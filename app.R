@@ -11,7 +11,7 @@ library(shinyWidgets)  # ver0.5.4 October 6, 2020
 library(tidyverse)  # ver1.3.0 November 21, 2019
 
 #library(Hmisc)  # ver4.4-1 August 11, 2020
-library(rmarkdown)  # ver2.5 October 21, 2020
+#library(rmarkdown)  # ver2.5 October 21, 2020
 library(DT)  # ver0.16 October 14, 2020
 library(tools)  # ver4.0.3
 library(shinyjs)  # ver2.0.0 September 9, 2020
@@ -21,14 +21,14 @@ library(shinyBS)  # ver0.62 devtools::install_github("ebailey78/shinyBS", ref="s
 library(shinyLP)  # ver1.1.2 April 25, 2018
 library(rdrop2)  # ver0.8.2.1 August 5, 2020
 library(shinyalert)  # ver2.0.0 September 12, 2020
-library(emayili)  # ver0.4.4 October 2, 2020
-library(shinyhelper)  # ver0.3.2 November 9, 2020
+#library(emayili)  # ver0.4.4 October 2, 2020
+#library(shinyhelper)  # ver0.3.2 November 9, 2020
 #library(pryr) # ver0.1.4 February 18, 2018
-library(shinythemes)
+#library(shinythemes)
 #library(tinytex)  # ver0.26 September 22, 2020
 #library(devtools)
 #library(bs4Dash)
-
+#library(readxl)
 #library(NCmisc)
 # 02 Declare Variables ----
 # UI Variables
@@ -52,19 +52,39 @@ unlink("cred.rds")
 version_number <- "1.0"
 current_date2 <- format(Sys.Date(), "%d, %B %Y, %A")
 
-backbone <- readRDS("data2/Backbone.rds")
-degree_master <- readRDS("data2/AW_Degree.rds")
-cips <- readRDS("data2/CIP_List.rds")
-occupation_master2 <- readRDS("data2/Occupations.rds")
-occupation_master <- occupation_master2 %>% select(-c(Entry_Code, Entry_Degree))
-req_degree_master <- readRDS("data2/req_degree_master.rds")
-major_master <- unique(backbone %>% select( "UNITID", "CIPCODE", "AWLEVEL", "CTOTALT") %>% filter(UNITID != "No Match"))
-major_master <- tibble::rowid_to_column(major_master, "ID")
+#new_cip2 <- read_excel("proto/CIP2020.xlsx", sheet = "CIP-SOC")
+#new_cip <- new_cip2 %>% select(CIP2020Code, CIP2020Title) %>% rename("CIPCODE" = "CIP2020Code", "CIPNAME" = "CIP2020Title")
+#new_cip <- new_cip %>% distinct(CIPCODE, .keep_all = TRUE)
+#new_occ <- new_cip2 %>% select(SOC2018Code, SOC2018Title) %>% rename("OCCCODE" = "SOC2018Code", "OCCNAME" = "SOC2018Title")
+#new_occ <- new_occ %>% distinct(OCCCODE, .keep_all = TRUE)
+backbone <- readRDS("proto/Backbone.rds")
+backbone <- backbone[-c(879978),]
+backbone <- backbone[-c(879977),]
 
-state_abbr <- readRDS("data/state_abbr.rds")
+#backbone_alt <- backbone %>% filter(CTOTALT != 0)
+
+degree_master <- readRDS("proto/AW_Degree.rds")
+cips <- readRDS("proto/CIP_List.rds")
+
+#new_cip <- rbind(new_cip, cips) %>% distinct(CIPCODE, .keep_all = TRUE)
+occupation_master2 <- readRDS("proto/Occupations.rds")
+occupation_master2 <- occupation_master2 %>% filter(OCCNAME != "FALSE")
+occupation_master2$Entry_Code[791] <- "No Match"
+occupation_master2$Entry_Degree[791] <- "No Match"
+occupation_master <- occupation_master2 %>% select(-c(Entry_Code, Entry_Degree))
+#occupation_alt <- readRDS("data2/Occupations.rds")
+#occupation_alt <- occupation_alt %>% select(OCCCODE, OCCNAME)
+#occupation_alt2 <- occupation_master %>% select(OCCCODE, OCCNAME)
+#occupation_alt3 <- rbind(occupation_alt, occupation_alt2) %>% distinct(OCCCODE, .keep_all = TRUE)
+#occ_alt <- new_occ[!(new_occ$OCCCODE %in% occupation_alt2$OCCCODE),]
+
+req_degree_master <- readRDS("proto/req_degree_master.rds")
+
+
+state_abbr <- readRDS("proto/state_abbr.rds")
 #school_master <- readRDS("data/Schools.rds")
-occupation_temp <- readRDS("data2/occupation_temp.rds")
-alt_title_all <- readRDS("data2/alt_title_all.rds")
+occupation_temp <- readRDS("proto/occupation_temp.rds")
+alt_title_all <- readRDS("proto/alt_title_all.rds")
 back_temp2 <- backbone %>% mutate(New_ED = Entry_Code)
 back_temp2 <- back_temp2 %>% mutate(New_ED = ifelse(as.character(New_ED) == "01", "0.1", as.character(New_ED)))
 back_temp2 <- back_temp2 %>% mutate(New_ED = ifelse(as.character(New_ED) == "05", "0.5", as.character(New_ED)))
@@ -73,13 +93,30 @@ req_degree_xwalk <- unique(back_temp2 %>% select( AWLEVEL, Entry_Code, New_ED)) 
   filter(Entry_Code != "No Match" , AWLEVEL !="No Match") %>% mutate(GREATER = (as.numeric(AWLEVEL) >= as.numeric(New_ED)))
 
 rm(back_temp2)
+
+
 occupation_list <- occupation_master %>% select(OCCNAME) %>% arrange(OCCNAME)
 degree_list <- degree_master %>% select(LEVELName)
-
+school_master2 <- readRDS("proto/Schools.rds")
+school_master2$INSTNM <- make.unique(as.character(school_master2$INSTNM), sep = "_")
+#school_alt <- readRDS("data2/School2.rds")
+#school_temp <- school_master2 %>% filter(UNITID %in% backbone$UNITID)
+backbone <- backbone %>% filter(OCCCODE %in% occupation_master$OCCCODE, CIPCODE %in% cips$CIPCODE )
+major_temp_list <- unique(backbone %>% select(CIPCODE, OCCCODE, Entry_Code))
+major_master <- unique(backbone %>% select( "UNITID", "CIPCODE", "AWLEVEL", "CTOTALT") %>% filter(UNITID != "No Match"))
+major_master <- tibble::rowid_to_column(major_master, "ID")
 major_list <- cips %>% select(CIPNAME) %>% arrange(CIPNAME)
-school_master2 <- readRDS("data2/School2.rds")
+
 school_list <- school_master2 %>% select(INSTNM) %>% arrange(INSTNM)
+#school_1 <- school_master2 %>% select(UNITID, INSTNM, CITY)
+#school_2 <- school_alt %>% select(UNITID, INSTNM) %>% rename("INSTNM_ALT" = "INSTNM") 
+#school_3 <- left_join(school_1, school_2, by = "UNITID")
+#school_4 <- school_3 %>% filter(INSTNM != INSTNM_ALT)
+#school_5 <- school_4 %>% filter(UNITID %in% backbone$UNITID)
 req_degree_list <- req_degree_master %>% select(Entry_Degree)
+
+#cip_temp <- backbone[!(backbone$CIPCODE %in% new_cip$CIPCODE),]
+#cips <- new_cip
 labelMandatory <- function(label) {
   tagList(
     label,
@@ -624,7 +661,7 @@ server <- function(input, output, session) {
   USER <- reactiveValues(login = login)  
   output$logoutbtn <- renderUI({
     req(USER$login)
-    tags$li(a(icon("fa fa-sign-out"), "Logout", 
+    tags$li(a(icon("fas fa-sign-out-alt"), "Logout", #<i class="fas fa-sign-out-alt"></i>
               href="javascript:window.location.reload(true)"),
             class = "dropdown", 
             style = "background-color: #eee !important; border: 0;
@@ -634,6 +671,7 @@ server <- function(input, output, session) {
   major_filter <- cips
   school_filter <- school_master2 %>% select("UNITID", "INSTNM")
   occupation_filter <- occupation_master %>% select("OCCNAME", "OCCCODE")
+  #occupation_filter <- rbind(occupation_filter, new_occ) %>% distinct(OCCCODE, .keep_all = TRUE)
   degree_filter <- degree_master
   req_degree_filter <- req_degree_master
   
@@ -662,7 +700,7 @@ server <- function(input, output, session) {
                              menuSubItem("Explore Schools", tabName = "school"),
                              menuSubItem("Explore Occupations", tabName = "occupation"),
                              menuSubItem("Explore Majors", tabName = "major")),
-                                        menuItem("Settings", tabName = "settings", icon = icon("cog")),
+                 #                       menuItem("Settings", tabName = "settings", icon = icon("fas fa-cog")),
                     menuItem("Tutorials", tabName = "tutorials", icon = icon("video")),
                     menuItem("Tools", tabName = "tools", icon = icon("wrench",lib = "glyphicon"))
                                       #  menuItem("Help", tabName = "help", icon = icon("question-circle")),
@@ -1590,7 +1628,7 @@ server <- function(input, output, session) {
   mm_master2 <- reactiveVal(0)
   major_modal_var <- reactive ({  
     mm_temp <- mm_master2()
-    major_temp <- unique(backbone %>% select(CIPCODE, OCCCODE, Entry_Code))
+    major_temp <- major_temp_list
     major_temp <- major_temp %>% filter(CIPCODE %in% major_modal_master$CIPCODE)
     major_temp <- left_join(major_temp, occupation_filter, by = "OCCCODE")
     major_temp <- left_join(major_temp, cips, by = "CIPCODE")
@@ -1713,7 +1751,7 @@ server <- function(input, output, session) {
           order = list(list(0, 'asc')),
           saveState = TRUE,
           filter = FALSE,
-          #        autoWidth = FALSE,
+          autoWidth = FALSE,
           columnDefs = (list(list(width = '270px', targets =c(0,1,2)),
                              list(targets = c(0,1,2),
                                   render = JS(
@@ -3029,7 +3067,8 @@ server <- function(input, output, session) {
       },ignoreInit = TRUE)
     }
   }
-  observe({  
+  observe({
+     
     output$em_table <- renderDT({
       DT::datatable(
         data = explore_major_var(),
@@ -3056,6 +3095,7 @@ server <- function(input, output, session) {
       ) #%>%
        # formatStyle(0,target = 'row', color = 'black', fontWeight = 'normal', fontSize = '15px', lineHeight = '100%')
     })
+      
   })
   observeEvent(input$major_favorite, {
     req(input$em_table_rows_selected)
